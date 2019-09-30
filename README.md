@@ -10,14 +10,6 @@ chmod 755 bootstrap.sh
 ./bootstrap.sh
 ```
 
-### Install
-
-`pip install bokku`
-
-### Setup
-
-`bokku init`
-
 ---
 
 ## Usage

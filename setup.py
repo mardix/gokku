@@ -1,32 +1,36 @@
 """
-Koka
+Bokku
+
+A small PAAS to deploy Flask/Django, Node, PHP and Static HTML sites using GIT, similar to Heroku
+
+https://github.com/mardix/bokku/
 
 """
 
 from setuptools import setup, find_packages
 
 
-__summary__ = "A package to deploy sites in virtualenv, run scripts, and deploy workers with supervisor"
-__uri__ = "http://github.com/mardix/koka/"
+__summary__ = "A small PAAS to deploy Flask/Django, Node, PHP and Static HTML sites using GIT, similar to Heroku"
+__uri__ = "https://github.com/mardix/bokku/"
 setup(
-    name="koka",
-    version="0.0.1",
+    name="bokku",
+    version="0.0.2",
     license="MIT",
     author="Mardix",
     author_email="mcx2082@gmail.com",
-    description="A package to deploy python application (Flask/Django), run workers and scripts using Pipenv and Supervisor",
+    description=__summary__,
     long_description=__doc__,
-    url="http://github.com/mardix/koka/",
-    download_url='http://github.com/mardix/koka/tarball/master',
-    py_modules=['koka'],
-    entry_points=dict(console_scripts=['koka=koka:main']),
+    url="https://github.com/mardix/bokku/",
+    download_url='https://github.com/mardix/bokku/tarball/master',
+    py_modules=['bokku'],
+    entry_points=dict(console_scripts=['bokku=bokku:main']),
     packages=find_packages(),
     install_requires=[
         'virtualenv',
         'uwsgi',
         'click',
     ],
-    keywords=['deploy', 'koka', 'flask', 'gunicorn', 'django', 'workers', 'deploy sites', 'deployapp'],
+    keywords=['deploy', 'bokku', 'flask', 'gunicorn', 'django', 'workers', 'heroku', 'firebase', 'dokku', 'paas'],
     platforms='any',
     classifiers=[
         'Environment :: Web Environment',

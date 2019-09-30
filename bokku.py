@@ -1,4 +1,4 @@
-"Koka Micro-PaaS"
+"Bokku Micro-PaaS"
 
 from fcntl import fcntl, F_SETFL, F_GETFL
 
@@ -30,10 +30,6 @@ from socket import socket, AF_INET, SOCK_STREAM
 from sys import argv, stdin, stdout, stderr, version_info, exit
 
 
-
-
-
-
 # === Make sure we can access all system binaries ===
 
 if 'sbin' not in os.environ['PATH']:
@@ -46,11 +42,11 @@ CWD = os.getcwd()
 
 os.environ["HOME"] = "/home"
 
-KOKA_CMD = "koka"
-USER = "koka"
-KOKA_ROOT = os.environ.get('KOKA_ROOT', join(os.environ['HOME'],'koka'))
-APP_ROOT = abspath(KOKA_ROOT)
-DOT_ROOT = abspath(join(KOKA_ROOT, ".koka"))
+BOKKU_CMD = "bokku"
+USER = "bokku"
+BOKKU_ROOT = os.environ.get('BOKKU_ROOT', join(os.environ['HOME'],'bokku'))
+APP_ROOT = abspath(BOKKU_ROOT)
+DOT_ROOT = abspath(join(BOKKU_ROOT, ".bokku"))
 ENV_ROOT = abspath(join(DOT_ROOT, "envs"))
 GIT_ROOT = abspath(join(DOT_ROOT, "repos"))
 LOG_ROOT = abspath(join(DOT_ROOT, "logs"))
@@ -129,7 +125,7 @@ NGINX_COMMON_FRAGMENT = """
   gzip_disable "MSIE [1-6]\.(?!.*SV1)";
   
   # set a custom header for requests
-  add_header X-Deployed-By Koka;
+  add_header X-Deployed-By Bokku;
 
   $INTERNAL_NGINX_CUSTOM_CLAUSES
 
@@ -260,13 +256,13 @@ def install_acme_sh():
         return
     try:
         _print("Installing acme.sh", type="success", arrow=True)
-        dest = join(KOKA_ROOT, "acme.sh")
+        dest = join(BOKKU_ROOT, "acme.sh")
         url = "https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh"
         content = urlopen(url).read().decode("utf-8")
         with open(dest, "w") as f:
             f.write(content)
         os.chmod(dest, 0755)
-        _call("./acme.sh --install", cwd=KOKA_ROOT, shell=True)
+        _call("./acme.sh --install", cwd=BOKKU_ROOT, shell=True)
         os.remove(dest)
     except Exception as e:
         _print('Unable to download acme.sh: %s' % e, type="error") 
@@ -343,7 +339,7 @@ def has_bin_dependencies(binaries):
 def get_app_config(app):
     config_file = join(APP_ROOT, app, CONFIG_FILE_NAME)
     with open(config_file) as f:
-        return json.load(f)["koka"]
+        return json.load(f)["bokku"]
     return None
 
 def get_app_proc(app):
@@ -633,7 +629,7 @@ def spawn_app(app, deltas={}):
             # fall back to creating self-signed certificate if acme failed
             if not os.path.isfile(key) or os.stat(crt).st_size == 0:
                 _print("generating self-signed certificate")
-                _call('openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=US/ST=NY/L=New York/O=Koka/OU=Self-Signed/CN={domain:s}" -keyout {key:s} -out {crt:s}'.format(**locals()), shell=True)
+                _call('openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=US/ST=NY/L=New York/O=Bokku/OU=Self-Signed/CN={domain:s}" -keyout {key:s} -out {crt:s}'.format(**locals()), shell=True)
             
             # restrict access to server from CloudFlare IP addresses
             acl = []
@@ -909,7 +905,7 @@ def multi_tail(app, filenames, catch_up=20):
     
 @click.group()
 def cli():
-    """Koka, the smallest PaaS you've ever seen"""
+    """Bokku, the smallest PaaS you've ever seen"""
     pass
 
     
@@ -949,7 +945,7 @@ def cmd_config(app):
 @click.argument('app')
 @click.argument('setting')
 def cmd_config_get(app, setting):
-    """e.g.: koka config:get <app> FOO"""
+    """e.g.: bokku config:get <app> FOO"""
     
     exit_if_invalid(app)
     app = sanitize_app_name(app)
@@ -990,7 +986,7 @@ def cmd_config_set(app, settings):
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_unset(app, settings):
-    """e.g.: koka config:unset <app> FOO"""
+    """e.g.: bokku config:unset <app> FOO"""
     
     exit_if_invalid(app)
     app = sanitize_app_name(app)
@@ -1008,7 +1004,7 @@ def cmd_config_unset(app, settings):
 @cli.command("config:live")
 @click.argument('app')
 def cmd_config_live(app):
-    """e.g.: koka config:live <app>"""
+    """e.g.: bokku config:live <app>"""
     
     exit_if_invalid(app)
     app = sanitize_app_name(app)
@@ -1208,7 +1204,7 @@ def cmd_setup_ssh(public_key_file):
                 with open(key_file) as f:
                     key = f.read().strip()
                 _print("Adding key '{}'.".format(fingerprint))
-                setup_authorized_keys(fingerprint, KOKA_CMD, key)
+                setup_authorized_keys(fingerprint, BOKKU_CMD, key)
             except Exception:
                 _print("Error: invalid public key file '{}': {}".format(key_file, traceback.format_exc()), type="error")
         elif '-' == public_key_file:
@@ -1265,7 +1261,7 @@ def git_receive_pack(app):
         with open(hook_path, 'w') as h:
             h.write("""#!/usr/bin/env bash
 set -e; set -o pipefail;
-cat | KOKA_ROOT="{KOKA_ROOT:s}" {KOKA_CMD:s} git-hook {app:s}""".format(**env))
+cat | BOKKU_ROOT="{BOKKU_ROOT:s}" {BOKKU_CMD:s} git-hook {app:s}""".format(**env))
         # Make the hook executable by our user
         os.chmod(hook_path, os.stat(hook_path).st_mode | stat.S_IXUSR)
     # Handle the actual receive. We'll be called with 'git-hook' after it happens

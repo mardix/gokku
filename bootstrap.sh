@@ -4,6 +4,9 @@ apt-get update
 apt-get -y dist-upgrade
 apt-get -y autoremove
 apt-get -y install  wget curl cron bc git build-essential libpcre3-dev zlib1g-dev python python3 python3-pip python3-dev python-pip python-setuptools python3-setuptools nginx incron acl
+apt-get update
+pip install uwsgi
+
 adduser --disabled-password --gecos 'PaaS access' --ingroup www-data bokku
 
 # move to /tmp and grab our distribution files

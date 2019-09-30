@@ -5,9 +5,9 @@ A small PAAS to deploy Flask/Django, Node, PHP and Static HTML sites using GIT, 
 ## Setup
 
 ```
-curl https://raw.githubusercontent.com/mardix/koka/master/bootstrap.sh > bootstrap.sh && chmod 755 bootstrap.sh
+curl https://raw.githubusercontent.com/mardix/bokku/master/bootstrap.sh > bootstrap.sh
+chmod 755 bootstrap.sh
 ./bootstrap.sh
-
 ```
 
 ### Install

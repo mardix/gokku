@@ -1,0 +1,33 @@
+{
+  "name": "",
+  "version": "",
+  "description": "",
+  "kairu": {
+    "type": "python",
+    "python_version": "2",
+    "node_version": "",
+    "auto_restart": true,
+    "static_paths": [],
+    "nginx": {
+      "https_only": "",
+      "cloudflare_acl": false,
+      "include_file": "",
+      "static_paths": ["/dir:path"]
+    },
+    "uwsgi": {},
+    "scripts": {
+      "setup": [
+        "apt-get install something something -y"
+      ],
+      "release": [],
+      "before_deploy": [],
+      "after_deploy": []
+    },    
+    "run": {
+      "web": "FLASIK_ENV=default:Production __flasik__:app",
+      "worker": "",
+      "worker2": "",
+      "worker3": ""
+    }
+  }
+}

@@ -1,4 +1,6 @@
-# bokku
+# Bokku
+
+A small PAAS to deploy Flask/Django, Node, PHP and Static HTML sites using GIT, similar to Heroku
 
 ## Setup
 

@@ -1,12 +1,12 @@
 [Unit]
-Description=kairu uWSGI Emperor
+Description=bokku uWSGI Emperor
 After=syslog.target
 
 [Service]
-ExecStart=/usr/local/bin/uwsgi-kairu --ini /home/kairu/.kairu/uwsgi/uwsgi.ini
-User=kairu
+ExecStart=/usr/local/bin/uwsgi-bokku --ini /home/bokku/.bokku/uwsgi/uwsgi.ini
+User=bokku
 Group=www-data
-RuntimeDirectory=uwsgi-kairu
+RuntimeDirectory=uwsgi-bokku
 Restart=always
 KillSignal=SIGQUIT
 Type=notify

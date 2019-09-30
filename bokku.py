@@ -1,4 +1,4 @@
-"Bokku Micro-PaaS"
+"Bokku"
 
 from fcntl import fcntl, F_SETFL, F_GETFL
 
@@ -1158,9 +1158,7 @@ def cmd_setup():
 
     _print("Running in Python {}".format(".".join(map(str,version_info))))
     
-    _print("creating new user: %s" % USER, type="success", arrow=True)
-    _call("adduser --disabled-password --gecos 'PaaS access' --ingroup www-data %s" % USER)
-        
+
     # Create required paths
     for p in [APP_ROOT, GIT_ROOT, ACME_WWW, ENV_ROOT, UWSGI_ROOT, UWSGI_AVAILABLE, UWSGI_ENABLED, LOG_ROOT, NGINX_ROOT]:
         if not os.path.isdir(p):
@@ -1187,9 +1185,6 @@ def cmd_setup():
 
     # acme
     install_acme_sh()
-
-    # 
-
 
 
 @cli.command("setup-ssh")

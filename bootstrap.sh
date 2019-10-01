@@ -1,38 +1,41 @@
 echo "Bokku installer"
 
 apt-get update
-apt-get -y dist-upgrade
-apt-get -y autoremove
-apt-get -y install  wget curl cron bc git build-essential libpcre3-dev zlib1g-dev python python3 python3-pip python3-dev python-pip python-setuptools python3-setuptools nginx incron acl
+apt-get install -y wget curl cron build-essential certbot git incron \
+    libjpeg-dev libxml2-dev libxslt1-dev zlib1g-dev nginx \
+    python-certbot-nginx python-dev python-pip python-virtualenv \
+    python3-dev python3-pip python3-virtualenv \
+    uwsgi uwsgi-plugin-asyncio-python3 uwsgi-plugin-gevent-python \
+    uwsgi-plugin-python uwsgi-plugin-python3 uwsgi-plugin-tornado-python
 apt-get update
-pip install uwsgi
 
 adduser --disabled-password --gecos 'PaaS access' --ingroup www-data bokku
 
-# move to /tmp and grab our distribution files
 cd /tmp
 wget https://raw.githubusercontent.com/mardix/bokku/master/files/incron.conf
 wget https://raw.githubusercontent.com/mardix/bokku/master/files/nginx.conf
 wget https://raw.githubusercontent.com/mardix/bokku/master/files/uwsgi-bokku.service
 
-# Set up nginx to pick up our config files
 cp /tmp/nginx.conf /etc/nginx/sites-available/default
-
-# Set up incron to reload nginx upon config changes
 cp /tmp/incron.conf /etc/incron.d/bokku
+cp /tmp/uwsgi-bokku.service /etc/systemd/system/
+ln -s `which uwsgi` /usr/local/bin/uwsgi-bokku
+
 systemctl restart incron
 systemctl restart nginx
-cp /tmp/uwsgi-bokku.service /etc/systemd/system/
-
-#refer to our executable using a link, in case there are more versions installed
-ln -s `which uwsgi` /usr/local/bin/uwsgi-bokku
-# disable the standard uwsgi startup script
 systemctl disable uwsgi
 systemctl enable uwsgi-bokku
+
+pip3 install bokku --upgrade
+
 su - bokku
 mkdir ~/.ssh
 chmod 700 ~/.ssh
-#pip install bokku --upgrade
+
 # Now import your SSH key using setup:ssh
+
+bokku init
 systemctl start uwsgi-bokku
-#bokku init
+
+echo ""
+echo "Bokku installation complete!"

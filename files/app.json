@@ -3,7 +3,7 @@
   "version": "",
   "description": "",
   "bokku": {
-    "type": "python",
+    "runtime": "python",
     "python_version": "2",
     "node_version": "",
     "auto_restart": true,

@@ -1,6 +1,6 @@
 # Bokku
 
-A small PAAS to deploy Flask/Django, Node, PHP and Static HTML sites using GIT, similar to Heroku
+A small PAAS to deploy Flask/Django, Node, PHP, Go application and Static HTML sites using GIT, similar to Heroku
 
 ## Setup
 
@@ -9,6 +9,12 @@ curl https://raw.githubusercontent.com/mardix/bokku/master/bootstrap.sh > bootst
 chmod 755 bootstrap.sh
 ./bootstrap.sh
 ```
+
+#### Note
+
+Bokku requires Python3. The `bootstrap.sh` by default will install it.
+
+To do it manually `pip3 install bokku`
 
 ---
 

@@ -14,7 +14,7 @@ __summary__ = "A small PAAS to deploy Flask/Django, Node, PHP and Static HTML si
 __uri__ = "https://github.com/mardix/bokku/"
 setup(
     name="bokku",
-    version="0.0.2",
+    version="0.0.3",
     license="MIT",
     author="Mardix",
     author_email="mcx2082@gmail.com",

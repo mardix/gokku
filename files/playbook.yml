@@ -10,6 +10,12 @@
         comment: PaaS access
         group: www-data
 
+    - name: Install Python packages
+      pip:
+        executable: pip3
+        name: ['bokku', 'uwsgi']
+      register: packages_installed
+
     - shell: which uwsgi
       register: uwsgi_location
       when: packages_installed is changed

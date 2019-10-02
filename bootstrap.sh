@@ -5,7 +5,7 @@ apt-get update
 apt-get install -y wget curl cron build-essential certbot git incron \
    libjpeg-dev libxml2-dev libxslt1-dev zlib1g-dev nginx \
    python-certbot-nginx python-dev python-pip python-virtualenv \
-   python3-dev python3-pip python3-virtualenv \
+   python3-dev python3-pip python3-click python3-virtualenv \
    uwsgi uwsgi-plugin-asyncio-python3 uwsgi-plugin-gevent-python \
    uwsgi-plugin-python uwsgi-plugin-python3 uwsgi-plugin-tornado-python
 apt-get update

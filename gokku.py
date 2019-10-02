@@ -922,7 +922,7 @@ def cli():
 def list_apps():
     """List apps"""
     for a in listdir(APP_ROOT):
-        if not a.startswith((".", "_")):
+        if not a.startswith((".", "_")) or not a.endswith("gokku.py"):
             echo(a, fg='green')
 
 
@@ -1270,11 +1270,11 @@ def main():
         cmd = sys.argv[1]
         app = sys.argv[2]
         if cmd == "git-hook":
-            git_hook(app)
+            cmd_git_hook(app)
         elif cmd == "git-upload-pack":
-            git_upload_pack(app)
+            cmd_git_upload_pack(app)
         elif cmd == "git-receive-pack":
-            git_receive_pack(app)
+            cmd_git_receive_pack(app)
     else:
         cli()
 

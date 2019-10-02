@@ -16,6 +16,15 @@ Bokku requires Python3. The `bootstrap.sh` by default will install it.
 
 To do it manually `pip3 install bokku`
 
+
+###
+
+```
+git remote add bokku booku@[HOST]:[APP_NAME]
+```
+
+`(ie: git remote add bokku bokku@host.com:mysite.com)`
+
 ---
 
 ## Usage

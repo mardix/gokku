@@ -27,15 +27,18 @@ systemctl disable uwsgi
 systemctl enable uwsgi-bokku
 
 pip3 install bokku --upgrade
-
-su - bokku
-mkdir ~/.ssh
-chmod 700 ~/.ssh
-
-# Now import your SSH key using setup:ssh
-
 bokku init
+
+# SSH
+cp ~/.ssh/authorized_keys /tmp/authorized_keys
+bokku setup:ssh /tmp/authorized_keys
+
 systemctl start uwsgi-bokku
+
+# su - bokku
+# mkdir ~/.ssh
+# chmod 700 ~/.ssh
+# Now import your SSH key using setup:ssh
 
 echo ""
 echo "Bokku installation complete!"

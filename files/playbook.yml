@@ -23,12 +23,6 @@
         state: link
       when: packages_installed is changed
 
-    - name: Install uwsgi dist script
-      get_url:
-        url: https://raw.githubusercontent.com/bokku/bokku/master/uwsgi-bokku.dist
-        dest: /etc/init.d/uwsgi-bokku
-        mode: 0700
-      when: packages_installed is changed
 
     - name: Install uwsgi-bokku dist script
       shell: update-rc.d uwsgi-bokku defaults

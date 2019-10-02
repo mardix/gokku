@@ -15,6 +15,8 @@
         executable: pip3
         name: ['bokku', 'uwsgi']
       register: packages_installed
+      update_cache: true
+      state: present
 
     - shell: which uwsgi
       register: uwsgi_location

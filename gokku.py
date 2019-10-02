@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-"Ruki: Nano Paas"
+"Gokku: Nano Paas"
 
 try:
     from sys import version_info
     assert version_info >= (3,5)
 except AssertionError:
-    exit("Ruki requires Python >= 3.5")
+    exit("Gokku requires Python >= 3.5")
     
 import sys
 import click
@@ -41,11 +41,12 @@ if 'sbin' not in environ['PATH']:
 
 # === Globals - all tweakable settings are here ===
 
-RUKI_ROOT = environ.get('RUKI_ROOT', join(environ['HOME'],'ruki'))
-RUKI_BIN = join(environ['HOME'],'bin')
-RUKI_SCRIPT = realpath(__file__)
-APP_ROOT = abspath(RUKI_ROOT)
-DOT_ROOT = abspath(join(RUKI_ROOT, ".ruki"))
+ROOT = environ.get('GOKKU_ROOT', environ['HOME'])
+APP_ROOT = abspath(ROOT)
+GOKKU_ROOT = environ.get('GOKKU_ROOT', join(environ['HOME'],'.gokku'))
+GOKKU_BIN = join(environ['HOME'],'bin')
+GOKKU_SCRIPT = realpath(__file__)
+DOT_ROOT = abspath(GOKKU_ROOT)
 ENV_ROOT = abspath(join(DOT_ROOT, "envs"))
 GIT_ROOT = abspath(join(DOT_ROOT, "repos"))
 LOG_ROOT = abspath(join(DOT_ROOT, "logs"))
@@ -58,10 +59,10 @@ ACME_ROOT = environ.get('ACME_ROOT', join(environ['HOME'],'.acme.sh'))
 ACME_WWW = abspath(join(DOT_ROOT, "acme"))
 
 
-# === Make sure we can access ruki user-installed binaries === #
+# === Make sure we can access gokku user-installed binaries === #
 
-if RUKI_BIN not in environ['PATH']:
-    environ['PATH'] = RUKI_BIN + ":" + environ['PATH']
+if GOKKU_BIN not in environ['PATH']:
+    environ['PATH'] = GOKKU_BIN + ":" + environ['PATH']
 
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
@@ -129,7 +130,7 @@ NGINX_COMMON_FRAGMENT = """
   gzip_disable "MSIE [1-6]\.(?!.*SV1)";
   
   # set a custom header for requests
-  add_header X-Deployed-By Ruki;
+  add_header X-Deployed-By Gokku;
 
   $INTERNAL_NGINX_CUSTOM_CLAUSES
 
@@ -245,13 +246,13 @@ def install_acme_sh():
         return
     try:
         echo("------> Installing acme.sh", fg="green")
-        dest = join(RUKI_ROOT, "acme.sh")
+        dest = join(GOKKU_ROOT, "acme.sh")
         url = "https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh"
         content = urlopen(url).read().decode("utf-8")
         with open(dest, "w") as f:
             f.write(content)
         chmod(dest, 755)
-        call("./acme.sh --install", cwd=RUKI_ROOT, shell=True)
+        call("./acme.sh --install", cwd=GOKKU_ROOT, shell=True)
         remove(dest)
     except Exception as e:
         echo('Unable to download acme.sh: %s' % e, type="error") 
@@ -332,7 +333,7 @@ def check_requirements(binaries):
 def get_app_config(app):
     config_file = join(APP_ROOT, app, "app.json")
     with open(config_file) as f:
-        return json.load(f)["ruki"]
+        return json.load(f)["gokku"]
     return None
 
 def get_app_proc(app):
@@ -634,7 +635,7 @@ def spawn_app(app, deltas={}):
             # fall back to creating self-signed certificate if acme failed
             if not exists(key) or stat(crt).st_size == 0:
                 echo("-----> generating self-signed certificate")
-                call('openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=US/ST=NY/L=New York/O=Ruki/OU=Self-Signed/CN={domain:s}" -keyout {key:s} -out {crt:s}'.format(**locals()), shell=True)
+                call('openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=US/ST=NY/L=New York/O=Gokku/OU=Self-Signed/CN={domain:s}" -keyout {key:s} -out {crt:s}'.format(**locals()), shell=True)
             
             # restrict access to server from CloudFlare IP addresses
             acl = []
@@ -911,7 +912,7 @@ def multi_tail(app, filenames, catch_up=20):
     
 @click.group()
 def cli():
-    """Ruki: Micro PaaS"""
+    """Gokku: Micro PaaS"""
     pass
 
 
@@ -928,7 +929,7 @@ def list_apps():
 @cli.command("config")
 @click.argument('app')
 def cmd_config(app):
-    """Show config, e.g.: ruki config <app>"""
+    """Show config, e.g.: gokku config <app>"""
     
     app = exit_if_invalid(app)
     
@@ -943,7 +944,7 @@ def cmd_config(app):
 @click.argument('app')
 @click.argument('setting')
 def cmd_config_get(app, setting):
-    """e.g.: ruki config:get <app> FOO"""
+    """e.g.: gokku config:get <app> FOO"""
     
     app = exit_if_invalid(app)
     
@@ -999,7 +1000,7 @@ def cmd_config_unset(app, settings):
 @cli.command("config:live")
 @click.argument('app')
 def cmd_config_live(app):
-    """<app>: ruki config:live <app>"""
+    """<app>: gokku config:live <app>"""
     
     app = exit_if_invalid(app)
 
@@ -1158,9 +1159,9 @@ def cmd_init():
             h.write("{k:s} = {v}\n".format(**locals()))
 
     # mark this script as executable (in case we were invoked via interpreter)
-    if not(stat(RUKI_SCRIPT).st_mode & S_IXUSR):
-        echo("Setting '{}' as executable.".format(RUKI_SCRIPT), fg='yellow')
-        chmod(RUKI_SCRIPT, stat(RUKI_SCRIPT).st_mode | S_IXUSR)
+    if not(stat(GOKKU_SCRIPT).st_mode & S_IXUSR):
+        echo("Setting '{}' as executable.".format(GOKKU_SCRIPT), fg='yellow')
+        chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
 
     # ACME
     install_acme_sh()
@@ -1176,7 +1177,7 @@ def cmd_setup_ssh(public_key_file):
                 fingerprint = str(check_output('ssh-keygen -lf ' + key_file, shell=True)).split(' ', 4)[1]
                 key = open(key_file, 'r').read().strip()
                 echo("Adding key '{}'.".format(fingerprint), fg='white')
-                setup_authorized_keys(fingerprint, RUKI_SCRIPT, key)
+                setup_authorized_keys(fingerprint, GOKKU_SCRIPT, key)
             except Exception:
                 echo("Error: invalid public key file '{}': {}".format(key_file, format_exc()), fg='red')
         elif '-' == public_key_file:
@@ -1194,7 +1195,7 @@ def cmd_setup_ssh(public_key_file):
 @cli.command("stop")
 @click.argument('app')
 def cmd_stop(app):
-    """Stop an app, e.g: ruki stop <app>"""
+    """Stop an app, e.g: gokku stop <app>"""
 
     app = exit_if_invalid(app)
     config = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
@@ -1245,7 +1246,7 @@ def cmd_git_receive_pack(app):
         with open(hook_path, 'w') as h:
             h.write("""#!/usr/bin/env bash
 set -e; set -o pipefail;
-cat | RUKI_ROOT="{RUKI_ROOT:s}" {RUKI_SCRIPT:s} git-hook {app:s}""".format(**env))
+cat | GOKKU_ROOT="{GOKKU_ROOT:s}" {GOKKU_SCRIPT:s} git-hook {app:s}""".format(**env))
         # Make the hook executable by our user
         chmod(hook_path, stat(hook_path).st_mode | S_IXUSR)
     call('git-shell -c "{}" '.format(argv[1] + " '{}'".format(app)), cwd=GIT_ROOT, shell=True)

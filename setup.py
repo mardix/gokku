@@ -1,9 +1,9 @@
 """
-Ruki
+Gokku
 
 A small PAAS to deploy Flask/Django, Node, PHP and Static HTML sites using GIT, similar to Heroku
 
-https://github.com/mardix/ruki/
+https://github.com/mardix/gokku/
 
 """
 
@@ -11,26 +11,26 @@ from setuptools import setup, find_packages
 
 
 __summary__ = "A small PAAS to deploy Flask/Django, Node, PHP and Static HTML sites using GIT, similar to Heroku"
-__uri__ = "https://github.com/mardix/ruki/"
+__uri__ = "https://github.com/mardix/gokku/"
 setup(
-    name="ruki",
+    name="gokku",
     version="0.0.2",
     license="MIT",
     author="Mardix",
     author_email="mcx2082@gmail.com",
     description=__summary__,
     long_description=__doc__,
-    url="https://github.com/mardix/ruki/",
-    download_url='https://github.com/mardix/ruki/tarball/master',
-    py_modules=['ruki'],
-    entry_points=dict(console_scripts=['ruki=ruki:main']),
+    url="https://github.com/mardix/gokku/",
+    download_url='https://github.com/mardix/gokku/tarball/master',
+    py_modules=['gokku'],
+    entry_points=dict(console_scripts=['gokku=gokku:main']),
     packages=find_packages(),
     install_requires=[
         'virtualenv',
         'uwsgi',
         'click',
     ],
-    keywords=['deploy', 'ruki', 'flask', 'gunicorn', 'django', 'workers', 'heroku', 'firebase', 'dokku', 'paas'],
+    keywords=['deploy', 'gokku', 'flask', 'gunicorn', 'django', 'workers', 'heroku', 'firebase', 'dokku', 'paas'],
     platforms='any',
     classifiers=[
         'Environment :: Web Environment',

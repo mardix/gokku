@@ -1181,7 +1181,7 @@ def cmd_init():
     # ACME
     install_acme_sh()
 
-@cli.command("setup-ssh")
+@cli.command("set-ssh")
 @click.argument('public_key_file')
 def cmd_setup_ssh(public_key_file):
     """Set up a new SSH key (use - for stdin)"""

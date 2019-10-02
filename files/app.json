@@ -2,7 +2,7 @@
   "name": "",
   "version": "",
   "description": "",
-  "bokku": {
+  "ruki": {
     "runtime": "python",
     "python_version": "2",
     "node_version": "",

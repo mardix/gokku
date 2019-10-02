@@ -3,9 +3,9 @@
 - hosts: all
   become: yes
   tasks:
-    - name: Add bokku user
+    - name: Add ruki user
       user:
-        name: bokku
+        name: ruki
         password: !
         comment: PaaS access
         group: www-data
@@ -13,7 +13,7 @@
     - name: Install Python packages
       pip:
         executable: pip3
-        name: ['bokku', 'uwsgi']
+        name: ['ruki', 'uwsgi']
       register: packages_installed
 
     - shell: which uwsgi
@@ -23,7 +23,7 @@
     - name: Create uwgsi symlink
       file:
         src: "{{uwsgi_location.stdout}}"
-        dest: /usr/local/bin/uwsgi-bokku
+        dest: /usr/local/bin/uwsgi-ruki
         owner: root
         group: root
         state: link
@@ -31,43 +31,43 @@
 
     - name: Install uwsgi dist script
       get_url:
-        url: https://raw.githubusercontent.com/mardix/bokku/master/files/uwsgi-bokku.dist
-        dest: /etc/init.d/uwsgi-bokku
+        url: https://raw.githubusercontent.com/mardix/ruki/master/files/uwsgi-ruki.dist
+        dest: /etc/init.d/uwsgi-ruki
         mode: 0700
       when: packages_installed is changed
 
-    - name: Install uwsgi-bokku dist script
-      shell: update-rc.d uwsgi-bokku defaults
+    - name: Install uwsgi-ruki dist script
+      shell: update-rc.d uwsgi-ruki defaults
       args:
-        creates: /etc/rc2.d/S01uwsgi-bokku
+        creates: /etc/rc2.d/S01uwsgi-ruki
       when: packages_installed is changed
 
 
-    - name: Install uwsgi-bokku systemd script
+    - name: Install uwsgi-ruki systemd script
       get_url:
-        url: https://raw.githubusercontent.com/mardix/bokku/master/files/uwsgi-bokku.service
-        dest: /etc/systemd/system/uwsgi-bokku.service
+        url: https://raw.githubusercontent.com/mardix/ruki/master/files/uwsgi-ruki.service
+        dest: /etc/systemd/system/uwsgi-ruki.service
         mode: 0600
       when: packages_installed is changed
 
-    - name: Create bokku ansible tmp dir
+    - name: Create ruki ansible tmp dir
       file:
-        path: ~bokku/.ansible/tmp
+        path: ~ruki/.ansible/tmp
         mode: 0700
-        owner: bokku
+        owner: ruki
         group: www-data
         state: directory
 
 - hosts: all
   become: yes
-  become_user: bokku
+  become_user: ruki
   tasks:
 
-    - name: Copy up my SSH key for bokku
+    - name: Copy up my SSH key for ruki
       copy: src=~/.ssh/id_rsa.pub dest=/tmp/id_rsa.pub
 
-    - name: Ask bokku to use SSH key
-      shell: bokku set-ssh /tmp/id_rsa.pub
+    - name: Ask ruki to use SSH key
+      shell: ruki set-ssh /tmp/id_rsa.pub
       args:
         creates: ~/.ssh/authorized_keys
 
@@ -79,9 +79,9 @@
       shell: command -v systemctl
       register: systemctl
 
-    - name: Enable uwsgi-bokku service
+    - name: Enable uwsgi-ruki service
       systemd:
-        name: uwsgi-bokku
+        name: uwsgi-ruki
         enabled: yes
         state: started
         masked: no
@@ -89,13 +89,13 @@
 
     - name: Start uwsgi init script
       service:
-        name: uwsgi-bokku
+        name: uwsgi-ruki
         state: started
       when: '"systemctl" not in systemctl.stdout'
 
     - name: Get nginx default config
       get_url:
-        url: https://raw.githubusercontent.com/mardix/bokku/master/files/nginx.conf
+        url: https://raw.githubusercontent.com/mardix/ruki/master/files/nginx.conf
         dest: /etc/nginx/sites-available/default
         force: yes
       register: nginx_config_installed
@@ -108,8 +108,8 @@
 
     - name: Get incron config
       get_url:
-        url: https://raw.githubusercontent.com/mardix/bokku/master/files/incron.conf
-        dest: /etc/incron.d/bokku
+        url: https://raw.githubusercontent.com/mardix/ruki/master/files/incron.conf
+        dest: /etc/incron.d/ruki
       register: incron_config_installed
 
     - name: Restart incron service

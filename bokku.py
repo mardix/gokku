@@ -1122,22 +1122,6 @@ def cmd_ps_scale(app, settings):
     do_deploy(app, deltas)
 
 
-@cli.command("shell")
-@click.argument('app')
-@click.argument('cmd', nargs=-1)
-def cmd_run(app, cmd):
-    """<app>: Run shell command for app - ie bokku shell <app> ls -- -al"""
-
-    app = exit_if_invalid(app)
-
-    config_file = join(ENV_ROOT, app, 'LIVE_ENV')
-    environ.update(parse_settings(config_file))
-    for f in [stdout, stderr]:
-        fl = fcntl(f, F_GETFL)
-        fcntl(f, F_SETFL, fl | O_NONBLOCK)
-    p = Popen(' '.join(cmd), stdin=stdin, stdout=stdout, stderr=stderr, env=environ, cwd=join(APP_ROOT,app), shell=True)
-    p.communicate() 
-
 @cli.command("restart")
 @click.argument('app')
 def cmd_restart(app):

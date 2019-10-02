@@ -1,0 +1,112 @@
+---
+
+- hosts: all
+  become: yes
+  tasks:
+    - name: Add bokku user
+      user:
+        name: bokku
+        password: !
+        comment: PaaS access
+        group: www-data
+
+    - shell: which uwsgi
+      register: uwsgi_location
+      when: packages_installed is changed
+
+    - name: Create uwgsi symlink
+      file:
+        src: "{{uwsgi_location.stdout}}"
+        dest: /usr/local/bin/uwsgi-bokku
+        owner: root
+        group: root
+        state: link
+      when: packages_installed is changed
+
+    - name: Install uwsgi dist script
+      get_url:
+        url: https://raw.githubusercontent.com/bokku/bokku/master/uwsgi-bokku.dist
+        dest: /etc/init.d/uwsgi-bokku
+        mode: 0700
+      when: packages_installed is changed
+
+    - name: Install uwsgi-bokku dist script
+      shell: update-rc.d uwsgi-bokku defaults
+      args:
+        creates: /etc/rc2.d/S01uwsgi-bokku
+      when: packages_installed is changed
+
+    - name: Install uwsgi-bokku systemd script
+      get_url:
+        url: https://raw.githubusercontent.com/mardix/bokku/master/files/uwsgi-bokku.service
+        dest: /etc/systemd/system/uwsgi-bokku.service
+        mode: 0600
+      when: packages_installed is changed
+
+    - name: Create bokku ansible tmp dir
+      file:
+        path: ~bokku/.ansible/tmp
+        mode: 0700
+        owner: bokku
+        group: www-data
+        state: directory
+
+- hosts: all
+  become: yes
+  become_user: bokku
+  tasks:
+
+    - name: Copy up my SSH key for bokku
+      copy: src=~/.ssh/id_rsa.pub dest=/tmp/id_rsa.pub
+
+    - name: Ask bokku to use SSH key
+      shell: bokku setup-ssh /tmp/id_rsa.pub
+      args:
+        creates: ~/.ssh/authorized_keys
+
+- hosts: all
+  become: yes
+  tasks:
+
+    - name: Test if systemctl is present
+      shell: command -v systemctl
+      register: systemctl
+
+    - name: Enable uwsgi-bokku service
+      systemd:
+        name: uwsgi-bokku
+        enabled: yes
+        state: started
+        masked: no
+      when: '"systemctl" in systemctl.stdout'
+
+    - name: Start uwsgi init script
+      service:
+        name: uwsgi-bokku
+        state: started
+      when: '"systemctl" not in systemctl.stdout'
+
+    - name: Get nginx default config
+      get_url:
+        url: https://raw.githubusercontent.com/mardix/bokku/master/files/nginx.conf
+        dest: /etc/nginx/sites-available/default
+        force: yes
+      register: nginx_config_installed
+
+    - name: Restart nginx service
+      service:
+        name: nginx
+        state: restarted
+      when: nginx_config_installed is changed
+
+    - name: Get incron config
+      get_url:
+        url: https://raw.githubusercontent.com/mardix/bokku/master/files/incron.conf
+        dest: /etc/incron.d/bokku
+      register: incron_config_installed
+
+    - name: Restart incron service
+      service:
+        name: incron
+        state: restarted
+      when: incron_config_installed is changed

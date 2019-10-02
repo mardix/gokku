@@ -15,8 +15,6 @@
         executable: pip3
         name: ['bokku', 'uwsgi']
       register: packages_installed
-      update_cache: true
-      state: present
 
     - shell: which uwsgi
       register: uwsgi_location
@@ -31,12 +29,19 @@
         state: link
       when: packages_installed is changed
 
+    - name: Install uwsgi dist script
+      get_url:
+        url: https://raw.githubusercontent.com/mardix/bokku/master/files/uwsgi-bokku.dist
+        dest: /etc/init.d/uwsgi-bokku
+        mode: 0700
+      when: packages_installed is changed
 
     - name: Install uwsgi-bokku dist script
       shell: update-rc.d uwsgi-bokku defaults
       args:
         creates: /etc/rc2.d/S01uwsgi-bokku
       when: packages_installed is changed
+
 
     - name: Install uwsgi-bokku systemd script
       get_url:
@@ -62,7 +67,7 @@
       copy: src=~/.ssh/id_rsa.pub dest=/tmp/id_rsa.pub
 
     - name: Ask bokku to use SSH key
-      shell: bokku setup-ssh /tmp/id_rsa.pub
+      shell: bokku set-ssh /tmp/id_rsa.pub
       args:
         creates: ~/.ssh/authorized_keys
 

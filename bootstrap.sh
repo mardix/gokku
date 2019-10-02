@@ -31,7 +31,7 @@ bokku init
 
 # SSH
 cp ~/.ssh/authorized_keys /tmp/authorized_keys
-bokku setup:ssh /tmp/authorized_keys
+bokku setup-ssh /tmp/authorized_keys
 
 systemctl start uwsgi-bokku
 

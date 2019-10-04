@@ -351,8 +351,19 @@ def get_app_env(app):
                 env.update({("%s_%s" % (k, vk)).upper(): vv for vk, vv in v.items() })
             else:
                 env[k.upper()] = v
-        if "SERVER_NAME" in env and not "NGINX_SERVER_NAME" in env:
-            env["NGINX_SERVER_NAME"] = env["SERVER_NAME"]
+
+        mapper = {
+            "SERVER_NAME": "NGINX_SERVER_NAME",
+            "STATIC_PATHS": "NGINX_STATIC_PATHS",
+            "HTTPS_ONLY": "NGINX_HTTPS_ONLY",
+            "THREADS": "UWSGI_THREADS",
+            "GEVENT": "WSGI_GEVENT",
+            "ASYNCIO": "WSGI_ASYNCIO"
+        }        
+        for k, v in mapper.items():
+            if k in env and v not in env:
+                env[v] = env[k] 
+
     return env
 
 def run_app_scripts(app, script_type, env=None):
@@ -369,7 +380,7 @@ def get_app_runtime(app):
     runtime = config.get("runtime")
     
     if runtime and runtime.lower() in VALID_RUNTIME:
-        return app_runtime.lower()
+        return runtime.lower()
     if exists(join(app_path, 'requirements.txt')):
         return "python"
     elif exists(join(app_path, 'package.json')) and has_bin_dependencies(['nodejs', 'npm']):
@@ -386,7 +397,7 @@ def do_deploy(app, deltas={}, newrev=None):
     app_path = join(APP_ROOT, app)
     config = get_app_config(app)
     workers = get_app_workers(app)
-    env = get_app_env(app)
+    env2 = get_app_env(app)
     log_path = join(LOG_ROOT, app)
 
     env = {'GIT_WORK_DIR': app_path}
@@ -411,7 +422,7 @@ def do_deploy(app, deltas={}, newrev=None):
                 echo("-----> [%s] app detected." % runtime, fg="green")
 
                 if "web" in workers or "wsgi" in workers:
-                    if "SERVER_NAME" not in env or "NGINX_SERVER_NAME" not in env:
+                    if "NGINX_SERVER_NAME" not in env2:
                         echo("ERROR: Missing 'SERVER_NAME' or 'NGINX_SERVER_NAME' when there is a 'web' or 'wsgi' worker", fg="red")
                         return
 
@@ -662,22 +673,23 @@ def spawn_app(app, deltas={}):
 
             env['INTERNAL_NGINX_STATIC_MAPPINGS'] = ''
 
-            # Get a mapping of /url:path1,/url2:path2
-            static_paths = env.get('NGINX_STATIC_PATHS','')
-            # prepend static worker path if present
+            # Get a mapping of /url:path1,/url2:path2, ...
+            static_paths = env.get('NGINX_STATIC_PATHS', "").split(",")
+            if not isinstance(static_paths, list):
+                static_paths = []
+
+            # append static worker path if present
             if 'static' in workers:
-                stripped = workers['static'].strip("/").rstrip("/")
-                static_paths = "/:" + (stripped if stripped else ".") + "/" + ("," if static_paths else "") + static_paths
+                static_paths.append(workers['static'].strip("/").rstrip("/"))
             if len(static_paths):
                 try:
-                    items = static_paths.split(',')
-                    for item in items:
-                        static_url, static_path = item.split(':')
+                    for item in static_paths:
+                        static_url, static_path = item.split(':', 2)
                         if static_path[0] != '/':
                             static_path = join(app_path, static_path)
                         env['INTERNAL_NGINX_STATIC_MAPPINGS'] = env['INTERNAL_NGINX_STATIC_MAPPINGS'] + expandvars(INTERNAL_NGINX_STATIC_MAPPING, locals())
                 except Exception as e:
-                    echo("Error {} in static path spec: should be /url1:path1[,/url2:path2], ignoring.".format(e))
+                    print("Error {} in static path spec: should be /url1:path1[,/url2:path2], ignoring.".format(e))
                     env['INTERNAL_NGINX_STATIC_MAPPINGS'] = ''
 
             env['INTERNAL_NGINX_CUSTOM_CLAUSES'] = expandvars(open(join(app_path, env["NGINX_INCLUDE_FILE"])).read(), env) if env.get("NGINX_INCLUDE_FILE") else ""
@@ -740,7 +752,7 @@ def spawn_app(app, deltas={}):
             enabled = join(UWSGI_ENABLED, '{app:s}_{k:s}.{w:d}.ini'.format(**locals()))
             if not exists(enabled):
                 echo("-----> spawning '{app:s}:{k:s}.{w:d}'".format(**locals()), fg='green')
-                spawn_worker(app, kind, workers[k], env, w)
+                spawn_worker(app, k, workers[k], env, w)
         
     # Remove unnecessary workers (leave logfiles)
     for k, v in to_destroy.items():
@@ -781,9 +793,9 @@ def spawn_worker(app, kind, command, env, ordinal=1):
     if exists(join(env_path, "bin", "activate_this.py")):
         settings.append(('virtualenv', env_path))
 
-    python_version = int(env.get('PYTHON_VERSION','3'))
-
-    if kind == 'wsgi':
+    
+    if kind == 'wsgi': 
+        # for Python only
         python_version = int(env.get('PYTHON_VERSION','3'))
         settings.extend([ ('module', command), ('threads', env.get('UWSGI_THREADS','4'))])
         if python_version == 2:
@@ -1186,6 +1198,16 @@ def cmd_setup_ssh(public_key_file):
 def cmd_version():
     """ Get Version """
     echo("%s v.%s" % (NAME, VERSION), fg="green")
+
+@cli.command("upgrade")
+def cmd_upgrade():
+    """ Upgrade to the latest version of Gokku """
+    url = "https://raw.githubusercontent.com/mardix/gokku/master/gokku.py"
+    echo("Upgrading %s" % NAME, fg="green")
+    echo("------> downloading file...")
+    urllib.request.urlretrieve(url, GOKKU_SCRIPT)
+    chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
+    echo("Upgrade complete!", fg="green")
 
 # --- Internal commands ---
 

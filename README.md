@@ -1,37 +1,66 @@
 # Gokku
 
-A nano Paas to deploy Flask/Django, Node, PHP, Go application and Static HTML sites using GIT, similar to Heroku
+A very small PaaS to do git push deployments to your own servers. Supports Python (Flask/Django), Node, PHP and Static HTML, process similar to Heroku
 
-## Setup
+### Features
 
-```
-curl https://raw.githubusercontent.com/mardix/gokku/master/bootstrap.sh > bootstrap.sh
-chmod 755 bootstrap.sh
-./bootstrap.sh
-```
-
-#### Note
-
-Gokku requires Python3. The `bootstrap.sh` by default will install it.
-
-or
-
-To do it manually `pip3 install gokku`
-
-
-###
-
-```
-git remote add gokku booku@[HOST]:[APP_NAME]
-```
-
-`(ie: git remote add gokku gokku@host.com:mysite.com)`
+- Deploy to own server
+- SSL with LetsEncrypt
+- Instant deploy
 
 ---
 
-## Usage
+## On your server
 
-### app.json
+Platform: **Ubuntu 18.04** or latest
+
+The Gokku install.sh script creates a **gokku** user on the system and installs all the necessary packages.
+
+Download the install script from Gokku github, then run the script:
+
+```
+curl https://raw.githubusercontent.com/mardix/gokku/master/install.sh > install.sh
+chmod 755 install.sh
+./install.sh
+```
+
+---
+
+## Application 
+
+### Git Remote 
+
+1.Make sure you have GIT on your machine, initialize the application repo
+
+```
+git init
+git add . 
+git commit 
+```
+
+2.Add a remote named **gokku** with the username **gokku** and substitute example.com with the public IP address of your Linode
+
+format: `git remote add gokku gokku@[HOST]:[APP_NAME]`
+
+Example
+
+```
+git remote add gokku gokku@example.com:flask-example
+```
+
+### Deploy application
+
+Once you are ready to deploy, push your code to master
+
+`git push gokku master`
+
+
+---
+
+## app.json
+
+`app.json` is a manifest format for describing web apps. It declares environment variables, scripts, and other information required to run an app on your server. This document describes the schema in detail.
+
 
 ``` json
 app.json
@@ -42,24 +71,24 @@ app.json
   "description": "",
   "gokku": {
     "type": "python",
-    "python_version": "2",
-    "node_version": "",
-    "auto_restart": true,
-    "nginx": {
-      "server_name": "",
-      "https_only": "",
-      "cloudflare_acl": false,
-      "include_file": "",
-      "static_paths": ["/dir:path"]
+    "env": {
+      "python_version": "2",
+      "node_version": "",
+      "auto_restart": true,
+      "nginx": {
+        "server_name": "",
+        "https_only": "",
+        "cloudflare_acl": false,
+        "include_file": "",
+        "static_paths": ["/dir:path"]
+      },
+      "uwsgi": {},
     },
-    "uwsgi": {},
     "scripts": {
-      "setup": [
-        "apt-get install something something -y"
-      ],
       "release": [],
-      "before_deploy": [],
-      "after_deploy": []
+      "destroy": [],
+      "predeploy": [],
+      "postdeploy": []
     },    
     "run": {
       "web": "manage.py",
@@ -74,6 +103,19 @@ app.json
 
 ---
 
+## Credit 
+
+Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank you 
+
+---
+
+## CHANGELOG
+
+- 0.1.0
+  - Initial
+
+
+---
 
 License: MIT - Copyright 2019-Forever Mardix
 

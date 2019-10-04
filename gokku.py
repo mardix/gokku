@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
-"Gokku: Nano Paas"
+"""
+Gokku
+A very small PaaS to do git push deployments to your own servers.
+"""
 
 try:
     from sys import version_info
@@ -34,19 +37,17 @@ from urllib.request import urlopen
 from pwd import getpwuid
 from grp import getgrgid
 
-# === Make sure we can access all system binaries ===
+# -----------------------------------------------------------------------------
 
-if 'sbin' not in environ['PATH']:
-    environ['PATH'] = "/usr/local/sbin:/usr/sbin:/sbin:" + environ['PATH']
+NAME = "Gokku"
+VERSION = "0.1.0"
+VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
-# === Globals - all tweakable settings are here ===
-
-ROOT = environ.get('GOKKU_ROOT', environ['HOME'])
-APP_ROOT = abspath(ROOT)
-GOKKU_ROOT = environ.get('GOKKU_ROOT', join(environ['HOME'],'.gokku'))
-GOKKU_BIN = join(environ['HOME'],'bin')
 GOKKU_SCRIPT = realpath(__file__)
-DOT_ROOT = abspath(GOKKU_ROOT)
+GOKKU_ROOT = environ.get('GOKKU_ROOT', environ['HOME'])
+GOKKU_BIN = join(environ['HOME'],'bin')
+APP_ROOT = abspath(join(GOKKU_ROOT, "apps"))
+DOT_ROOT = abspath(join(GOKKU_ROOT, ".gokku"))
 ENV_ROOT = abspath(join(DOT_ROOT, "envs"))
 GIT_ROOT = abspath(join(DOT_ROOT, "repos"))
 LOG_ROOT = abspath(join(DOT_ROOT, "logs"))
@@ -58,14 +59,14 @@ UWSGI_LOG_MAXSIZE = '1048576'
 ACME_ROOT = environ.get('ACME_ROOT', join(environ['HOME'],'.acme.sh'))
 ACME_WWW = abspath(join(DOT_ROOT, "acme"))
 
-
-# === Make sure we can access gokku user-installed binaries === #
+if 'sbin' not in environ['PATH']:
+    environ['PATH'] = "/usr/local/sbin:/usr/sbin:/sbin:" + environ['PATH']
 
 if GOKKU_BIN not in environ['PATH']:
     environ['PATH'] = GOKKU_BIN + ":" + environ['PATH']
 
-VALID_RUNTIME = ["python", "node", "static", "php", "go"]
-
+# -----------------------------------------------------------------------------
+# NGINX
 NGINX_TEMPLATE = """
 upstream $APP {
   server $NGINX_SOCKET;
@@ -106,7 +107,6 @@ server {
 $INTERNAL_NGINX_COMMON
 }
 """
-# pylint: enable=anomalous-backslash-in-string
 
 NGINX_COMMON_FRAGMENT = """
   listen              $NGINX_IPV6_ADDRESS:$NGINX_SSL;
@@ -194,7 +194,7 @@ INTERNAL_NGINX_UWSGI_SETTINGS = """
     uwsgi_param SERVER_NAME $server_name;
 """
 
-# === Utility functions ===
+# -----------------------------------------------------------------------------
 
 def sanitize_app_name(app):
     """Sanitize the app name and build matching path"""
@@ -258,7 +258,6 @@ def install_acme_sh():
         echo('Unable to download acme.sh: %s' % e, type="error") 
 
 
-
 def parse_procfile(filename):
     """Parses a Procfile and returns the worker types. Only one worker of each type is allowed."""
     
@@ -274,11 +273,11 @@ def parse_procfile(filename):
                 echo("Warning: unrecognized Procfile entry '{}'".format(line), fg='yellow')
     if not len(workers):
         return {}
-    # WSGI trumps regular web workers
-    if 'wsgi' in workers or 'jwsgi' in workers:
-        if 'web' in workers:
-            echo("Warning: found both 'wsgi' and 'web' workers, disabling 'web'", fg='yellow')
-            del(workers['web'])
+
+    # WSGI takes precedence regular web workers
+    if 'wsgi' in workers and "web" in workers:
+        echo("Warning: found both 'wsgi' and 'web' workers, disabling 'web'", fg='yellow')
+        del(workers['web'])
     return workers 
 
 
@@ -331,30 +330,36 @@ def check_requirements(binaries):
     
 
 def get_app_config(app):
+    """ Return the info from app.json """
     config_file = join(APP_ROOT, app, "app.json")
     with open(config_file) as f:
         return json.load(f)["gokku"]
     return None
 
-def get_app_proc(app):
-    return get_app_config(app)["run"]
+def get_app_workers(app):
+    """ Returns the applications to run """
+    workers = get_app_config(app)["run"]
+    return workers
 
 def get_app_env(app):
+    """ Turn config into ENV """
     env = {}
     config = get_app_config(app)
-    for k, v in config.items():
-        if k not in ["run", "scripts"]:
+    if "env" in config:
+        for k, v in config["env"].items():
             if isinstance(v, dict):
                 env.update({("%s_%s" % (k, vk)).upper(): vv for vk, vv in v.items() })
             else:
                 env[k.upper()] = v
+        if "SERVER_NAME" in env and not "NGINX_SERVER_NAME" in env:
+            env["NGINX_SERVER_NAME"] = env["SERVER_NAME"]
     return env
 
 def run_app_scripts(app, script_type, env=None):
     cwd = join(APP_ROOT, app)
     config = get_app_config(app)
     if "scripts" in config and script_type in config["scripts"]:
-        echo("Running scripts: %s ..." % script_type, fg="white")
+        echo("-----> Running scripts: %s ..." % script_type, fg="green")
         for cmd in config["scripts"][script_type]:
             call(cmd, cwd=cwd, env=env, shell=True)
 
@@ -365,7 +370,6 @@ def get_app_runtime(app):
     
     if runtime and runtime.lower() in VALID_RUNTIME:
         return app_runtime.lower()
-
     if exists(join(app_path, 'requirements.txt')):
         return "python"
     elif exists(join(app_path, 'package.json')) and has_bin_dependencies(['nodejs', 'npm']):
@@ -381,6 +385,8 @@ def do_deploy(app, deltas={}, newrev=None):
     
     app_path = join(APP_ROOT, app)
     config = get_app_config(app)
+    workers = get_app_workers(app)
+    env = get_app_env(app)
     log_path = join(LOG_ROOT, app)
 
     env = {'GIT_WORK_DIR': app_path}
@@ -404,6 +410,11 @@ def do_deploy(app, deltas={}, newrev=None):
             else:
                 echo("-----> [%s] app detected." % runtime, fg="green")
 
+                if "web" in workers or "wsgi" in workers:
+                    if "SERVER_NAME" not in env or "NGINX_SERVER_NAME" not in env:
+                        echo("ERROR: Missing 'SERVER_NAME' or 'NGINX_SERVER_NAME' when there is a 'web' or 'wsgi' worker", fg="red")
+                        return
+
                 # python
                 if runtime == "python":
                     deploy_python(app, deltas)
@@ -421,9 +432,9 @@ def do_deploy(app, deltas={}, newrev=None):
                     deploy_static(app, deltas)
 
                 # Spawn app
-                run_app_scripts(app, "before_deploy")
+                run_app_scripts(app, "predeploy")
                 spawn_app(app, deltas)
-                run_app_scripts(app, "after_deploy")
+                run_app_scripts(app, "postdeploy")
     else:
         echo("Error: app '{}' not found.".format(app), fg='red')
 
@@ -534,9 +545,8 @@ def spawn_app(app, deltas={}):
     """Create all workers for an app"""
     
     app_path = join(APP_ROOT, app)
-    pwd = join(APP_ROOT, app)
-    workers = get_app_proc(app)
-    workers.pop("release", None)
+    workers = get_app_workers(app)
+    runtime = get_app_runtime(app)
     ordinals = defaultdict(lambda:1)
     worker_count = {k:1 for k in workers.keys()}
 
@@ -551,7 +561,7 @@ def spawn_app(app, deltas={}):
         'HOME': environ['HOME'],
         'USER': environ.get("USER"),
         'PATH': ':'.join([join(virtualenv_path,'bin'),environ['PATH']]),
-        'PWD': pwd,
+        'PWD': app_path,
         'VIRTUAL_ENV': virtualenv_path,
     }
 
@@ -598,19 +608,10 @@ def spawn_app(app, deltas={}):
                 'ACME_WWW': ACME_WWW,
             })
             
-            # default to reverse proxying to the TCP port we picked
             env['INTERNAL_NGINX_UWSGI_SETTINGS'] = 'proxy_pass http://{BIND_ADDRESS:s}:{PORT:s};'.format(**env)
-            if 'wsgi' in workers:
-                sock = join(NGINX_ROOT, "{}.sock".format(app))
-                env['INTERNAL_NGINX_UWSGI_SETTINGS'] = expandvars(INTERNAL_NGINX_UWSGI_SETTINGS, env)
-                env['NGINX_SOCKET'] = env['BIND_ADDRESS'] = "unix://" + sock
-                if 'PORT' in env:
-                    del env['PORT']
-            else:
-                env['NGINX_SOCKET'] = "{BIND_ADDRESS:s}:{PORT:s}".format(**env) 
-                echo("-----> nginx will look for app '{}' on {}".format(app, env['NGINX_SOCKET']))
+            env['NGINX_SOCKET'] = "{BIND_ADDRESS:s}:{PORT:s}".format(**env) 
+            echo("-----> nginx will look for app '{}' on {}".format(app, env['NGINX_SOCKET']))
 
-        
             domain = env['NGINX_SERVER_NAME'].split()[0]       
             key, crt = [join(NGINX_ROOT, "{}.{}".format(app,x)) for x in ['key','crt']]
             if exists(join(ACME_ROOT, "acme.sh")):
@@ -681,7 +682,7 @@ def spawn_app(app, deltas={}):
 
             env['INTERNAL_NGINX_CUSTOM_CLAUSES'] = expandvars(open(join(app_path, env["NGINX_INCLUDE_FILE"])).read(), env) if env.get("NGINX_INCLUDE_FILE") else ""
             env['INTERNAL_NGINX_PORTMAP'] = ""
-            if 'web' in workers or 'wsgi' in workers or 'jwsgi' in workers:
+            if 'web' in workers or 'wsgi' in workers:
                 env['INTERNAL_NGINX_PORTMAP'] = expandvars(NGINX_PORTMAP_FRAGMENT, env)
             env['INTERNAL_NGINX_COMMON'] = expandvars(NGINX_COMMON_FRAGMENT, env)
 
@@ -739,7 +740,7 @@ def spawn_app(app, deltas={}):
             enabled = join(UWSGI_ENABLED, '{app:s}_{k:s}.{w:d}.ini'.format(**locals()))
             if not exists(enabled):
                 echo("-----> spawning '{app:s}:{k:s}.{w:d}'".format(**locals()), fg='green')
-                spawn_worker(app, k, workers[k], env, w)
+                spawn_worker(app, kind, workers[k], env, w)
         
     # Remove unnecessary workers (leave logfiles)
     for k, v in to_destroy.items():
@@ -754,8 +755,7 @@ def spawn_app(app, deltas={}):
 
 def spawn_worker(app, kind, command, env, ordinal=1):
     """Set up and deploy a single worker of a given kind"""
-    
-    # pylint: disable=unused-variable
+
     env['PROC_TYPE'] = kind
     env_path = join(ENV_ROOT, app)
     available = join(UWSGI_AVAILABLE, '{app:s}_{kind:s}.{ordinal:d}.ini'.format(**locals()))
@@ -784,11 +784,8 @@ def spawn_worker(app, kind, command, env, ordinal=1):
     python_version = int(env.get('PYTHON_VERSION','3'))
 
     if kind == 'wsgi':
-        settings.extend([
-            ('module',      command),
-            ('threads',     env.get('UWSGI_THREADS','4')),
-        ])
         python_version = int(env.get('PYTHON_VERSION','3'))
+        settings.extend([ ('module', command), ('threads', env.get('UWSGI_THREADS','4'))])
         if python_version == 2:
             settings.extend([('plugin','python')])
             if 'UWSGI_GEVENT' in env:
@@ -800,21 +797,10 @@ def spawn_worker(app, kind, command, env, ordinal=1):
             if 'UWSGI_ASYNCIO' in env:
                 settings.extend([('plugin','asyncio_python3'),])
 
+        http = '{BIND_ADDRESS:s}:{PORT:s}'.format(**env)
+        echo("-----> nginx will talk to uWSGI via %s" % http , fg='yellow')
+        settings.extend([('http', http), ('http-socket', http)])
 
-        # If running under nginx, don't expose a port at all
-        if 'NGINX_SERVER_NAME' in env:
-            sock = join(NGINX_ROOT, "{}.sock".format(app))
-            echo("-----> nginx will talk to uWSGI via {}".format(sock), fg='yellow')
-            settings.extend([
-                ('socket', sock),
-                ('chmod-socket', '664'),
-            ])
-        else:
-            echo("-----> nginx will talk to uWSGI via {BIND_ADDRESS:s}:{PORT:s}".format(**env), fg='yellow')
-            settings.extend([
-                ('http',        '{BIND_ADDRESS:s}:{PORT:s}'.format(**env)),
-                ('http-socket', '{BIND_ADDRESS:s}:{PORT:s}'.format(**env)),
-            ])
     elif kind == 'web':
         echo("-----> nginx will talk to the 'web' process via {BIND_ADDRESS:s}:{PORT:s}".format(**env), fg='yellow')
         settings.append(('attach-daemon', command))
@@ -912,15 +898,17 @@ def multi_tail(app, filenames, catch_up=20):
     
 @click.group()
 def cli():
-    """Gokku: Micro PaaS"""
+    """ Gokku - A very small PaaS to do git push deployments. 
+
+    https://github.com/mardix/gokku/ """
     pass
 
 
 # --- User commands ---
 
-@cli.command("apps")
+@cli.command("ls")
 def list_apps():
-    """List apps"""
+    """List all apps"""
     for a in listdir(APP_ROOT):
         if not a.startswith((".", "_")) or not a.endswith("gokku.py"):
             echo(a, fg='green')
@@ -929,7 +917,7 @@ def list_apps():
 @cli.command("config")
 @click.argument('app')
 def cmd_config(app):
-    """Show config, e.g.: gokku config <app>"""
+    """<app>: Show configs"""
     
     app = exit_if_invalid(app)
     
@@ -938,23 +926,6 @@ def cmd_config(app):
         echo(open(config_file).read().strip(), fg='white')
     else:
         echo("Warning: app '{}' not deployed, no config found.".format(app), fg='yellow')
-
-
-@cli.command("config:get")
-@click.argument('app')
-@click.argument('setting')
-def cmd_config_get(app, setting):
-    """e.g.: gokku config:get <app> FOO"""
-    
-    app = exit_if_invalid(app)
-    
-    config_file = join(ENV_ROOT, app, 'ENV')
-    if exists(config_file):
-        env = parse_settings(config_file)
-        if setting in env:
-            echo("{}".format(env[setting]), fg='white')
-    else:
-        echo("Warning: no active configuration for '{}'".format(app))
 
 
 @cli.command("config:set")
@@ -983,7 +954,7 @@ def cmd_config_set(app, settings):
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_unset(app, settings):
-    """<app> FOO"""
+    """<app> KEY: Unset config """
     
     app = exit_if_invalid(app)
     
@@ -1000,7 +971,7 @@ def cmd_config_unset(app, settings):
 @cli.command("config:live")
 @click.argument('app')
 def cmd_config_live(app):
-    """<app>: gokku config:live <app>"""
+    """<app>: live configuration"""
     
     app = exit_if_invalid(app)
 
@@ -1011,7 +982,7 @@ def cmd_config_live(app):
         echo("Warning: app '{}' not deployed, no config found.".format(app), fg='yellow')
 
 
-@cli.command("deploy")
+@cli.command("app:deploy")
 @click.argument('app')
 def cmd_deploy(app):
     """<app>: deploy an app"""
@@ -1020,7 +991,7 @@ def cmd_deploy(app):
     do_deploy(app)
 
 
-@cli.command("destroy")
+@cli.command("app:destroy")
 @click.argument('app')
 def cmd_destroy(app):
     """<app>: Permanently destroy an app"""
@@ -1060,8 +1031,11 @@ def cmd_destroy(app):
         echo("Removing file '{}'".format(acme_link), fg='yellow')
         unlink(acme_link)
 
+    # on destroy
+    run_app_scripts(app, "destroy")
+
     
-@cli.command("logs")
+@cli.command("app:logs")
 @click.argument('app')
 def cmd_logs(app):
     """<app>: Tail running logs"""
@@ -1076,7 +1050,7 @@ def cmd_logs(app):
         echo("No logs found for app '{}'.".format(app), fg='yellow')
 
 
-@cli.command("ps")
+@cli.command("app:ps")
 @click.argument('app')
 def cmd_ps(app):
     """<app>: Show process count"""
@@ -1090,11 +1064,11 @@ def cmd_ps(app):
         echo("Error: no workers found for app '{}'.".format(app), fg='red')
 
 
-@cli.command("scale")
+@cli.command("app:scale")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_ps_scale(app, settings):
-    """<app>: [<proc>=<count>, ...]: Scale app"""
+    """<app> [<proc>=<count>, ...]: Scale app"""
     
     app = exit_if_invalid(app)
 
@@ -1118,7 +1092,7 @@ def cmd_ps_scale(app, settings):
     do_deploy(app, deltas)
 
 
-@cli.command("restart")
+@cli.command("app:restart")
 @click.argument('app')
 def cmd_restart(app):
     """<app>: Restart an app"""
@@ -1127,6 +1101,21 @@ def cmd_restart(app):
 
     do_restart(app)
 
+@cli.command("app:stop")
+@click.argument('app')
+def cmd_stop(app):
+    """<app>: Stop an app"""
+
+    app = exit_if_invalid(app)
+    config = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
+
+    if len(config):
+        echo("Stopping app '{}'...".format(app), fg='yellow')
+        for c in config:
+            remove(c)
+    else:
+        echo("Error: app '{}' not deployed!".format(app), fg='red')
+        
 
 @cli.command("init")
 def cmd_init():
@@ -1192,22 +1181,12 @@ def cmd_setup_ssh(public_key_file):
     add_helper(public_key_file)
 
 
-@cli.command("stop")
-@click.argument('app')
-def cmd_stop(app):
-    """Stop an app, e.g: gokku stop <app>"""
 
-    app = exit_if_invalid(app)
-    config = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
+@cli.command("version")
+def cmd_version():
+    """ Get Version """
+    echo("%s v.%s" % (NAME, VERSION), fg="green")
 
-    if len(config):
-        echo("Stopping app '{}'...".format(app), fg='yellow')
-        for c in config:
-            remove(c)
-    else:
-        echo("Error: app '{}' not deployed!".format(app), fg='red')
-        
-        
 # --- Internal commands ---
 
 
@@ -1219,14 +1198,13 @@ def cmd_git_hook(app):
     app_path = join(APP_ROOT, app)
     
     for line in stdin:
-        # pylint: disable=unused-variable
         oldrev, newrev, refname = line.strip().split(" ")
-        # Handle pushes
         if not exists(app_path):
             echo("-----> Creating app '{}'".format(app), fg='green')
             makedirs(app_path)
             call('git clone --quiet {} {}'.format(repo_path, app), cwd=APP_ROOT, shell=True)
-        run_app_scripts(app, "setup")
+        # On each release
+        run_app_scripts(app, "release")
         do_deploy(app, newrev=newrev)
 
 
@@ -1251,7 +1229,7 @@ cat | GOKKU_ROOT="{GOKKU_ROOT:s}" {GOKKU_SCRIPT:s} git-hook {app:s}""".format(**
         chmod(hook_path, stat(hook_path).st_mode | S_IXUSR)
     call('git-shell -c "{}" '.format(argv[1] + " '{}'".format(app)), cwd=GIT_ROOT, shell=True)
 
-
+    
 def cmd_upload_pack(app):
     """INTERNAL: Handle git upload pack for an app"""
     app = sanitize_app_name(app)

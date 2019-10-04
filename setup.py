@@ -10,7 +10,7 @@ https://github.com/mardix/gokku/
 from setuptools import setup, find_packages
 
 
-__summary__ = "A small PAAS to deploy Flask/Django, Node, PHP and Static HTML sites using GIT, similar to Heroku"
+__summary__ = "A very small PaaS to do git push app deployments to your own servers, similar to Heroku"
 __uri__ = "https://github.com/mardix/gokku/"
 setup(
     name="gokku",

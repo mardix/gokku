@@ -4,28 +4,30 @@
   "description": "",
   "gokku": {
     "runtime": "python",
-    "python_version": "2",
-    "node_version": "",
-    "auto_restart": true,
-    "static_paths": [],
-    "nginx": {
-      "https_only": "",
-      "cloudflare_acl": false,
-      "include_file": "",
-      "static_paths": ["/dir:path"]
+    "env": {
+      "python_version": "2",
+      "node_version": "",
+      "auto_restart": true,
+      "static_paths": [],
+      "server_name": "",
+      "nginx": {
+        "https_only": "",
+        "cloudflare_acl": false,
+        "include_file": "",
+        "static_paths": ["/dir:path"]
+      },  
+      "uwsgi": {}    
     },
-    "uwsgi": {},
     "scripts": {
-      "setup": [
-        "apt-get install something something -y"
-      ],
       "release": [],
-      "before_deploy": [],
-      "after_deploy": []
+      "destroy": [],
+      "predeploy": [],
+      "postdeploy": []
     },    
     "run": {
-      "web": "FLASIK_ENV=default:Production __flasik__:app",
-      "worker": "",
+      "wsgi": "for wsgi/python application. ie: app:app ",
+      "web": "For other web script",
+      "worker": "A worker script",
       "worker2": "",
       "worker3": ""
     }

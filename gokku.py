@@ -1012,7 +1012,7 @@ def cmd_destroy(app):
     app = sanitize_app_name(app)
 
     echo("**** WARNING ****", fg="red")
-    _print("**** YOU ARE ABOUT TO DESTROY AN APP ****", fg="red")
+    echo("**** YOU ARE ABOUT TO DESTROY AN APP ****", fg="red")
     if not click.confirm("Do you want to destroy this app? It will delete everything"):
         exit(1)
     if not click.confirm("Are you really sure?"):

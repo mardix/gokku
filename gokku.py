@@ -1018,6 +1018,9 @@ def cmd_destroy(app):
     if not click.confirm("Are you really sure?"):
         exit(1)
     
+    # on destroy
+    run_app_scripts(app, "destroy")
+        
     for p in [join(x, app) for x in [APP_ROOT, GIT_ROOT, ENV_ROOT, LOG_ROOT]]:
         if exists(p):
             echo("Removing folder '{}'".format(p), fg='yellow')
@@ -1044,8 +1047,7 @@ def cmd_destroy(app):
         echo("Removing file '{}'".format(acme_link), fg='yellow')
         unlink(acme_link)
 
-    # on destroy
-    run_app_scripts(app, "destroy")
+
 
     
 @cli.command("app:logs")

@@ -33,6 +33,7 @@ from subprocess import call, check_output, Popen, STDOUT, PIPE
 from tempfile import NamedTemporaryFile
 from traceback import format_exc
 from time import sleep
+import urllib.request
 from urllib.request import urlopen
 from pwd import getpwuid
 from grp import getgrgid

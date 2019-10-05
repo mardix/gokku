@@ -8,15 +8,16 @@
       "python_version": "2",
       "node_version": "",
       "auto_restart": true,
-      "static_paths": "/dir:path,/dir2:path2 (alias to nginx.static_paths)",
+      "static_paths": ["/dir:path","/dir2:path2", "(alias to nginx.static_paths)"],
       "server_name": "",
       "https_only": "",
+      "http_only": "",
       "threads": "4 (alias to uwsgi.threads)",
+      
       "nginx": {
         "https_only": "",
         "cloudflare_acl": false,
-        "include_file": "",
-        "static_paths": "/dir:path,/dir2:path2"
+        "include_file": ""
       },  
       "uwsgi": {
         "threads": "4",
@@ -31,13 +32,11 @@
       "postdeploy": []
     },    
     "run": {
-      "wsgi": "for wsgi/python application. ie: app:app ",
-      "web": "For other web app which requires a server command",
-      "static": "/dir:path (only one path. For more paths, add to env.static_paths)",
-
-      "worker": "A worker script",
-      "worker2": "",
-      "worker3": ""
+      "wsgi": "app.py:app (for wsgi/python application)",
+      "web": "node server.js (For other web app which requires a server command)",
+      "static": "/dir-name-or-no-name-for-root (only one path. For other paths, add to env.static_paths)",
+      "worker": "script-command",
+      "worker2": "script-command"
     }
   }
 }

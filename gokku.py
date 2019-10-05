@@ -420,11 +420,11 @@ def do_deploy(app, deltas={}, newrev=None):
             if not runtime:
                 echo("-----> Could not detect runtime!", fg="red")
             else:
-                echo("-----> [%s] app detected." % runtime, fg="green")
+                echo("-----> [%s] app detected." % runtime.upper(), fg="green")
 
-                if "web" in workers or "wsgi" in workers:
+                if "web" in workers or "wsgi" in workers or 'static' in workers:
                     if "NGINX_SERVER_NAME" not in env2:
-                        echo("ERROR: Missing 'SERVER_NAME' or 'NGINX_SERVER_NAME' when there is a 'web' or 'wsgi' worker", fg="red")
+                        echo("ERROR: Missing 'SERVER_NAME' or 'NGINX_SERVER_NAME' when there is a 'web' or 'wsgi' or 'static' application", fg="red")
                         return
 
                 # python
@@ -610,9 +610,9 @@ def spawn_app(app, deltas={}):
             nginx_ssl = "443 ssl"
             if "--with-http_v2_module" in nginx:
                 nginx_ssl += " http2"
-            elif "--with-http_spdy_module" in nginx and "nginx/1.6.2" not in nginx: # avoid Raspbian bug
+            elif "--with-http_spdy_module" in nginx and "nginx/1.6.2" not in nginx:
                 nginx_ssl += " spdy"
-            nginx_conf = join(NGINX_ROOT,"{}.conf".format(app))
+            nginx_conf = join(NGINX_ROOT,"%s.conf" % app)
         
             env.update({ 
                 'NGINX_SSL': nginx_ssl,
@@ -674,23 +674,23 @@ def spawn_app(app, deltas={}):
 
             env['INTERNAL_NGINX_STATIC_MAPPINGS'] = ''
 
-            # Get a mapping of /url:path1,/url2:path2, ...
-            static_paths = env.get('NGINX_STATIC_PATHS', "").split(",")
+            # Get a mapping of [/url1:path1, /url2:path2, ...] ...
+            static_paths = env.get('NGINX_STATIC_PATHS', [])
             if not isinstance(static_paths, list):
                 static_paths = []
 
-            # append static worker path if present
-            if 'static' in workers:
-                static_paths.append(workers['static'].strip("/").rstrip("/"))
+            # static requires just the path. It will set the url as root
+            if 'static' in workers and runtime == 'static':
+                static_paths.insert(0, '/:%s' % workers['static'].strip("/").rstrip("/"))
             if len(static_paths):
                 try:
                     for item in static_paths:
                         static_url, static_path = item.split(':', 2)
-                        if static_path[0] != '/':
-                            static_path = join(app_path, static_path)
+                        #if static_path[0] != '/':
+                        static_path = join(app_path, static_path)
                         env['INTERNAL_NGINX_STATIC_MAPPINGS'] = env['INTERNAL_NGINX_STATIC_MAPPINGS'] + expandvars(INTERNAL_NGINX_STATIC_MAPPING, locals())
                 except Exception as e:
-                    print("Error {} in static path spec: should be /url1:path1[,/url2:path2], ignoring.".format(e))
+                    print("Error {} in static_paths spec: should be a list [/url1:path1, /url2:path2, ...], ignoring.".format(e))
                     env['INTERNAL_NGINX_STATIC_MAPPINGS'] = ''
 
             env['INTERNAL_NGINX_CUSTOM_CLAUSES'] = expandvars(open(join(app_path, env["NGINX_INCLUDE_FILE"])).read(), env) if env.get("NGINX_INCLUDE_FILE") else ""
@@ -700,7 +700,7 @@ def spawn_app(app, deltas={}):
             env['INTERNAL_NGINX_COMMON'] = expandvars(NGINX_COMMON_FRAGMENT, env)
 
             echo("-----> nginx will map app '{}' to hostname '{}'".format(app, env['NGINX_SERVER_NAME']))
-            if('NGINX_HTTPS_ONLY' in env) or ('HTTPS_ONLY' in env):
+            if 'NGINX_HTTPS_ONLY' in env or 'HTTPS_ONLY' in env:
                 buffer = expandvars(NGINX_HTTPS_ONLY_TEMPLATE, env)
                 echo("-----> nginx will redirect all requests to hostname '{}' to HTTPS".format(env['NGINX_SERVER_NAME']))
             else:
@@ -1020,7 +1020,7 @@ def cmd_destroy(app):
     
     # on destroy
     run_app_scripts(app, "destroy")
-        
+
     for p in [join(x, app) for x in [APP_ROOT, GIT_ROOT, ENV_ROOT, LOG_ROOT]]:
         if exists(p):
             echo("Removing folder '{}'".format(p), fg='yellow')

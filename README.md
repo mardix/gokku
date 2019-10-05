@@ -113,8 +113,12 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
 
 - 0.1.0
   - Initial
-
-
+  - app.json contains the application configuration
+  - 'app.run.static' only accepts the path of the content
+  - added 'cli.upgrade' to upgrade to the latest version
+  - 'app.json' can now have scripts to run 
+  - 'uwsgi' and 'nginx' are hidden, 'app.env' can contain basic key
+  - 'app.env.static_paths' is an array
 ---
 
 License: MIT - Copyright 2019-Forever Mardix

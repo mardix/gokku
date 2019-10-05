@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.7"
+VERSION = "0.0.8"
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -260,7 +260,7 @@ def parse_procfile(filename):
     
     workers = {}
     if not exists(filename):
-        return return workers
+        return workers
     with open(filename, 'r') as procfile:
         for line in procfile:
             try:

@@ -119,6 +119,7 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - Simplifying "web" worker. No need for static or wsgi.
   - Python default to wsgi worker, to force to a standalone set env.wsgi: false
   - reformat uwsgi file name '${app-name}___${kind}.${index}.ini' (3 underscores)
+  - static sites have their own directives
 ---
 
 License: MIT - Copyright 2019-Forever Mardix

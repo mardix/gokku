@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.9"
+VERSION = "0.0.10"
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -132,6 +132,8 @@ NGINX_COMMON_FRAGMENT = """
 
   $INTERNAL_NGINX_CUSTOM_CLAUSES
 
+  $INTERNAL_NGINX_HTML_PHP_CLAUSES
+
   $INTERNAL_NGINX_STATIC_MAPPINGS
 
   $INTERNAL_NGINX_PORTMAP
@@ -153,20 +155,19 @@ NGINX_PORTMAP_FRAGMENT = """
 """
 
 NGINX_ACME_FIRSTRUN_TEMPLATE = """
-server {
-  listen              $NGINX_IPV6_ADDRESS:80;
-  listen              $NGINX_IPV4_ADDRESS:80;
-  server_name         $NGINX_SERVER_NAME;
-  location ^~ /.well-known/acme-challenge {
-    allow all;
-    root ${ACME_WWW};
-  }
-}
+    server {
+        listen              $NGINX_IPV6_ADDRESS:80;
+        listen              $NGINX_IPV4_ADDRESS:80;
+        server_name         $NGINX_SERVER_NAME;
+        location ^~ /.well-known/acme-challenge {
+            allow all;
+            root ${ACME_WWW};
+        }
+    }
 """
 
 INTERNAL_NGINX_STATIC_MAPPING = """
   location $static_url {
-      index index.html index.html;
       sendfile on;
       sendfile_max_chunk 1m;
       tcp_nopush on;
@@ -193,6 +194,26 @@ INTERNAL_NGINX_UWSGI_SETTINGS = """
     uwsgi_param SERVER_NAME $server_name;
 """
 
+INTERNAL_NGINX_HTML_PHP_CLAUSES = """
+
+    # HTML/PHP/Static sites
+
+    root $html_root;
+    index index.html index.htm index.php;
+    location / {
+        try_files $uri $uri/ =404;
+    } 
+    
+    # Pass PHP scripts to PHP-FPM
+    location ~* \.php$ {
+        fastcgi_index   index.php;
+        fastcgi_pass    127.0.0.1:9000;
+        include         fastcgi_params;
+        fastcgi_param   SCRIPT_FILENAME    $document_root$fastcgi_script_name;
+        fastcgi_param   SCRIPT_NAME        $fastcgi_script_name;
+    } 
+
+"""
 # -----------------------------------------------------------------------------
 
 def sanitize_app_name(app):
@@ -679,21 +700,26 @@ def spawn_app(app, deltas={}):
             env['NGINX_ACL'] = " ".join(acl)
 
             env['INTERNAL_NGINX_STATIC_MAPPINGS'] = ''
+            env['INTERNAL_NGINX_HTML_PHP_CLAUSES'] = ''
+
+            # static requires just the path. It will set the url as root
+            if 'static' in workers and runtime == 'static':
+                static_path = workers['static'].strip("/").rstrip("/")
+                html_root = join(app_path, static_path)
+                env['INTERNAL_NGINX_HTML_PHP_CLAUSES'] =  expandvars(INTERNAL_NGINX_HTML_PHP_CLAUSES, locals())
+
 
             # Get a mapping of [/url1:path1, /url2:path2, ...] ...
             static_paths = env.get('NGINX_STATIC_PATHS', [])
             if not isinstance(static_paths, list):
                 static_paths = []
 
-            # static requires just the path. It will set the url as root
-            if 'static' in workers and runtime == 'static':
-                static_paths.insert(0, '/:%s' % workers['static'].strip("/").rstrip("/"))
             if len(static_paths):
                 try:
                     for item in static_paths:
                         static_url, static_path = item.split(':', 2)
-                        #if static_path[0] != '/':
-                        static_path = join(app_path, static_path)
+                        if static_path[0] != '/':
+                            static_path = join(app_path, static_path)
                         env['INTERNAL_NGINX_STATIC_MAPPINGS'] = env['INTERNAL_NGINX_STATIC_MAPPINGS'] + expandvars(INTERNAL_NGINX_STATIC_MAPPING, locals())
                 except Exception as e:
                     print("Error {} in static_paths spec: should be a list [/url1:path1, /url2:path2, ...], ignoring.".format(e))

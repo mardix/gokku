@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.11"
+VERSION = "0.0.12"
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -888,6 +888,10 @@ def cleanup_uwsgi_enabled_ini(app):
             remove(c)
         return True
 
+def remove_nginx_conf(app):
+    nginx_conf = join(NGINX_ROOT,"%s.conf" % app)
+    if exists(nginx_conf):
+        remove(nginx_conf)
 
 def do_restart(app):
     if cleanup_uwsgi_enabled_ini(app):
@@ -1165,10 +1169,11 @@ def cmd_stop(app):
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
 
+    echo("removed nginx config file", fg="yellow")
+    remove_nginx_conf(app)
+
     if cleanup_uwsgi_enabled_ini(app):
         echo("Stopped app '{}'".format(app), fg='yellow')
-    else:
-        echo("Error: app '{}' not deployed!".format(app), fg='red')
         
 @cli.command("init")
 def cmd_init():

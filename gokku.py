@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.4"
+VERSION = "0.0.5"
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -112,7 +112,7 @@ $INTERNAL_NGINX_COMMON
 NGINX_COMMON_FRAGMENT = """
   listen              $NGINX_IPV6_ADDRESS:$NGINX_SSL;
   listen              $NGINX_IPV4_ADDRESS:$NGINX_SSL;
-  ssl                 on;
+  ssl                 off;
   ssl_certificate     $NGINX_ROOT/$APP.crt;
   ssl_certificate_key $NGINX_ROOT/$APP.key;
   server_name         $NGINX_SERVER_NAME;
@@ -129,9 +129,6 @@ NGINX_COMMON_FRAGMENT = """
   gzip_min_length 2048;
   gzip_vary on;
   gzip_disable "MSIE [1-6]\.(?!.*SV1)";
-  
-  # set a custom header for requests
-  add_header X-Deployed-By Gokku;
 
   $INTERNAL_NGINX_CUSTOM_CLAUSES
 
@@ -527,17 +524,19 @@ def deploy_python(app, deltas={}):
     
     virtualenv_path = join(ENV_ROOT, app)
     requirements = join(APP_ROOT, app, 'requirements.txt')
+    activation_script = join(virtualenv_path,'bin','activate_this.py')
     env = get_app_env(app)
     version = int(env.get("PYTHON_VERSION", "3"))
 
     first_time = False
-    if not exists(virtualenv_path):
+    if not exists(activation_script):
         echo("-----> Creating virtualenv for '{}'".format(app), fg='green')
-        makedirs(virtualenv_path)
+        if not exists(virtualenv_path):
+            makedirs(virtualenv_path)
         call('virtualenv --python=python{version:d} {app:s}'.format(**locals()), cwd=ENV_ROOT, shell=True)
         first_time = True
 
-    activation_script = join(virtualenv_path,'bin','activate_this.py')
+    
     exec(open(activation_script).read(), dict(__file__=activation_script))
 
     if first_time or getmtime(requirements) > getmtime(virtualenv_path):

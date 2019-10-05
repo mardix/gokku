@@ -62,7 +62,8 @@ Once you are ready to deploy, push your code to master
 `app.json` is a manifest format for describing web apps. It declares environment variables, scripts, and other information required to run an app on your server. This document describes the schema in detail.
 
 
-``` json
+```json
+
 app.json
 
 {
@@ -70,19 +71,14 @@ app.json
   "version": "",
   "description": "",
   "gokku": {
-    "type": "python",
     "env": {
+      "server_name": "",
+      "runtime": "python",
       "python_version": "2",
       "node_version": "",
       "auto_restart": true,
-      "nginx": {
-        "server_name": "",
-        "https_only": "",
-        "cloudflare_acl": false,
-        "include_file": "",
-        "static_paths": ["/dir:path"]
-      },
-      "uwsgi": {},
+      "static_paths": ["/dir:path"],
+      "https_only": false,
     },
     "scripts": {
       "release": [],
@@ -91,10 +87,10 @@ app.json
       "postdeploy": []
     },    
     "run": {
-      "web": "manage.py",
+      "web": "app:app",
       "worker": "",
-      "worker2": "",
-      "worker3": ""
+      "worker1": "",
+      "worker2": ""
     }
   }
 }
@@ -122,7 +118,7 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - Fixed python virtualenv setup, if the repo was used for a different runtime
   - Simplifying "web" worker. No need for static or wsgi.
   - Python default to wsgi worker, to force to a standalone set env.wsgi: false
-  - reformat uwsgi name '${app-name}___${kind}.${index}.ini' (3 underscores)
+  - reformat uwsgi file name '${app-name}___${kind}.${index}.ini' (3 underscores)
 ---
 
 License: MIT - Copyright 2019-Forever Mardix

@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.10"
+VERSION = "0.0.11"
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -349,6 +349,7 @@ def get_app_config(app):
         return json.load(f)["gokku"]
     return None
 
+
 def get_app_workers(app):
     """ Returns the applications to run 
         For web, it will pick the type of web to run: web/wsgi/static
@@ -366,6 +367,7 @@ def get_app_workers(app):
             workers["wsgi"] = workers["web"]
             del(workers["web"])
     return workers
+
 
 def get_app_env(app):
     """ Turn config into ENV """
@@ -392,6 +394,7 @@ def get_app_env(app):
 
     return env
 
+
 def run_app_scripts(app, script_type, env=None):
     cwd = join(APP_ROOT, app)
     config = get_app_config(app)
@@ -399,6 +402,7 @@ def run_app_scripts(app, script_type, env=None):
         echo("-----> Running scripts: %s ..." % script_type, fg="green")
         for cmd in config["scripts"][script_type]:
             call(cmd, cwd=cwd, env=env, shell=True)
+
 
 def get_app_runtime(app):
     app_path = join(APP_ROOT, app)
@@ -416,6 +420,7 @@ def get_app_runtime(app):
     elif (exists(join(app_path, 'Godeps')) or len(glob(join(app_path,'*.go')))) and check_requirements(['go']): 
         return "go"         
     return None
+
 
 def do_deploy(app, deltas={}, newrev=None):
     """Deploy an app by resetting the work directory"""
@@ -575,10 +580,12 @@ def deploy_python(app, deltas={}):
 def deploy_php(app, deltas={}):
     pass
 
+
 def deploy_static(app, deltas={}):
     env_path = join(ENV_ROOT, app)
     if not exists(env_path):
         makedirs(env_path)
+
 
 def spawn_app(app, deltas={}):
     """Create all workers for an app"""
@@ -795,7 +802,8 @@ def spawn_app(app, deltas={}):
                 unlink(enabled)
 
     return env
-    
+
+
 def spawn_worker(app, kind, command, env, ordinal=1):
     """Set up and deploy a single worker of a given kind"""
 
@@ -872,6 +880,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
                 h.write("{k:s} = {v}\n".format(**locals()))
         copyfile(available, enabled)
 
+
 def cleanup_uwsgi_enabled_ini(app):
     config = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
     if len(config):
@@ -879,12 +888,14 @@ def cleanup_uwsgi_enabled_ini(app):
             remove(c)
         return True
 
+
 def do_restart(app):
     if cleanup_uwsgi_enabled_ini(app):
         echo("Restarting app '{}'...".format(app), fg='yellow')
         spawn_app(app)
     else:
         echo("Error: app '{}' not deployed!".format(app), fg='red')
+
 
 def multi_tail(app, filenames, catch_up=20):
     """Tails multiple log files"""
@@ -1153,12 +1164,9 @@ def cmd_stop(app):
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    config = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
 
-    if len(config):
-        echo("Stopping app '{}'...".format(app), fg='yellow')
-        for c in config:
-            remove(c)
+    if cleanup_uwsgi_enabled_ini(app):
+        echo("Stopped app '{}'".format(app), fg='yellow')
     else:
         echo("Error: app '{}' not deployed!".format(app), fg='red')
         

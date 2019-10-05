@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.12"
+VERSION = "0.0.13"
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -893,14 +893,6 @@ def remove_nginx_conf(app):
     if exists(nginx_conf):
         remove(nginx_conf)
 
-def do_restart(app):
-    if cleanup_uwsgi_enabled_ini(app):
-        echo("Restarting app '{}'...".format(app), fg='yellow')
-        spawn_app(app)
-    else:
-        echo("Error: app '{}' not deployed!".format(app), fg='red')
-
-
 def multi_tail(app, filenames, catch_up=20):
     """Tails multiple log files"""
     
@@ -1159,7 +1151,9 @@ def cmd_restart(app):
     
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    do_restart(app)
+    cleanup_uwsgi_enabled_ini(app)
+    echo("Restarting app '{}'...".format(app), fg='yellow')
+    spawn_app(app)
 
 @cli.command("app:stop")
 @click.argument('app')
@@ -1168,12 +1162,10 @@ def cmd_stop(app):
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-
     echo("removed nginx config file", fg="yellow")
     remove_nginx_conf(app)
-
-    if cleanup_uwsgi_enabled_ini(app):
-        echo("Stopped app '{}'".format(app), fg='yellow')
+    cleanup_uwsgi_enabled_ini(app)
+    echo("App '{}' stopped".format(app), fg='yellow')
         
 @cli.command("init")
 def cmd_init():

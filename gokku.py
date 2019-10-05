@@ -361,8 +361,8 @@ def get_app_env(app):
             "STATIC_PATHS": "NGINX_STATIC_PATHS",
             "HTTPS_ONLY": "NGINX_HTTPS_ONLY",
             "THREADS": "UWSGI_THREADS",
-            "GEVENT": "WSGI_GEVENT",
-            "ASYNCIO": "WSGI_ASYNCIO"
+            "GEVENT": "UWSGI_GEVENT",
+            "ASYNCIO": "UWSGI_ASYNCIO"
         }        
         for k, v in mapper.items():
             if k in env and v not in env:
@@ -746,14 +746,15 @@ def spawn_app(app, deltas={}):
     write_config(scaling, worker_count, ':')
     
     # auto restart
-    if env.get("AUTO_RESTART", True) is True:
-        if cleanup_uwsgi_enabled_ini(app):
-            echo("-----> auto-restart triggered")
+    if env.get("AUTO_RESTART", False) is True:
+        echo("-----> auto-restart triggered", fg="green")
+        cleanup_uwsgi_enabled_ini(app)
+            
 
     # Create new workers
     for k, v in to_create.items():
         for w in v:
-            enabled = join(UWSGI_ENABLED, '{app:s}_{k:s}.{w:d}.ini'.format(**locals()))
+            enabled = join(UWSGI_ENABLED, '{app:s}___{k:s}.{w:d}.ini'.format(**locals()))
             if not exists(enabled):
                 echo("-----> spawning '{app:s}:{k:s}.{w:d}'".format(**locals()), fg='green')
                 spawn_worker(app, k, workers[k], env, w)
@@ -761,7 +762,7 @@ def spawn_app(app, deltas={}):
     # Remove unnecessary workers (leave logfiles)
     for k, v in to_destroy.items():
         for w in v:
-            enabled = join(UWSGI_ENABLED, '{app:s}_{k:s}.{w:d}.ini'.format(**locals()))
+            enabled = join(UWSGI_ENABLED, '{app:s}___{k:s}.{w:d}.ini'.format(**locals()))
             if exists(enabled):
                 echo("-----> terminating '{app:s}:{k:s}.{w:d}'".format(**locals()), fg='yellow')
                 unlink(enabled)
@@ -773,8 +774,8 @@ def spawn_worker(app, kind, command, env, ordinal=1):
 
     env['PROC_TYPE'] = kind
     env_path = join(ENV_ROOT, app)
-    available = join(UWSGI_AVAILABLE, '{app:s}_{kind:s}.{ordinal:d}.ini'.format(**locals()))
-    enabled = join(UWSGI_ENABLED, '{app:s}_{kind:s}.{ordinal:d}.ini'.format(**locals()))
+    available = join(UWSGI_AVAILABLE, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
+    enabled = join(UWSGI_ENABLED, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
     log_file = join(LOG_ROOT, app, kind)
 
     settings = [
@@ -929,6 +930,7 @@ def list_apps():
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             status = "running" # not running
+            color = "green" # red
             echo("[%s] - %s" % (status, app), fg='green')
 
 

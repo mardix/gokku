@@ -20,7 +20,7 @@
       // node_version: if runtime is node, specify node version
       "node_version": "",
       // auto_restart (bool): to force server restarts when deploying
-      "auto_restart": true,
+      "auto_restart": false,
       // static_paths (array): specify list off path, [/url:path, ...]
       "static_paths": ["/url:path", "/url2:path2", "(alias to nginx.static_paths)"],
       // https_only (bool): when true, it will redirect http to https

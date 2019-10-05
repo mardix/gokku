@@ -122,7 +122,7 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - Fixed python virtualenv setup, if the repo was used for a different runtime
   - Simplifying "web" worker. No need for static or wsgi.
   - Python default to wsgi worker, to force to a standalone set env.wsgi: false
-  - env.auto_restart is True by default
+  - reformat uwsgi name '${app-name}___${kind}.${index}.ini' (3 underscores)
 ---
 
 License: MIT - Copyright 2019-Forever Mardix

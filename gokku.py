@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.8"
+VERSION = "0.0.9"
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -166,6 +166,7 @@ server {
 
 INTERNAL_NGINX_STATIC_MAPPING = """
   location $static_url {
+      index index.html index.html;
       sendfile on;
       sendfile_max_chunk 1m;
       tcp_nopush on;

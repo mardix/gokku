@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.13"
+VERSION = "0.0.14"
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -961,11 +961,18 @@ def cli():
 @cli.command("apps")
 def list_apps():
     """List all apps"""
+    enabled = { a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a }
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
-            status = "running" # not running
-            color = "green" # red
-            echo("[%s] - %s" % (status, app), fg='green')
+            runtime = get_app_runtime(app)
+            nginx_file = join(NGINX_ROOT, "%s.conf" % app)
+            running = False
+            if runtime  == "static":
+                if exists(nginx_file):
+                    running = True
+            else:
+                running = app in enabled
+            echo("[%s][%s] : %s" % ("running" if running else "not running", runtime, app), fg="green" if running else "red")
 
 
 @cli.command("config")

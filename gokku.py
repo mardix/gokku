@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.6"
+VERSION = "0.0.7"
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -198,13 +198,12 @@ def sanitize_app_name(app):
     """Sanitize the app name and build matching path"""
     return "".join(c for c in app if c.isalnum() or c in ('.','_')).rstrip().lstrip('/')
 
-def exit_if_invalid(app):
+def exit_if_not_exists(app):
     """Utility function for error checking upon command startup."""
     app = sanitize_app_name(app)
     if not exists(join(APP_ROOT, app)):
-        echo("Error: app '{}' not found.".format(app), fg='red')
+        echo("Error: app '%s' not found." % app, fg='red')
         exit(1)
-    return app
 
 
 def get_free_port(address=""):
@@ -261,7 +260,7 @@ def parse_procfile(filename):
     
     workers = {}
     if not exists(filename):
-        return None
+        return return workers
     with open(filename, 'r') as procfile:
         for line in procfile:
             try:
@@ -269,13 +268,7 @@ def parse_procfile(filename):
                 workers[kind] = command
             except:
                 echo("Warning: unrecognized Procfile entry '{}'".format(line), fg='yellow')
-    if not len(workers):
-        return {}
 
-    # WSGI takes precedence regular web workers
-    if 'wsgi' in workers and "web" in workers:
-        echo("Warning: found both 'wsgi' and 'web' workers, disabling 'web'", fg='yellow')
-        del(workers['web'])
     return workers 
 
 
@@ -335,8 +328,21 @@ def get_app_config(app):
     return None
 
 def get_app_workers(app):
-    """ Returns the applications to run """
+    """ Returns the applications to run 
+        For web, it will pick the type of web to run: web/wsgi/static
+        For python, set wsgi if env.wsgi is not False
+    """
     workers = get_app_config(app)["run"]
+    env = get_app_env(app)
+    runtime = get_app_runtime(app)
+
+    if "web" in workers:
+        if runtime == "static":
+            workers["static"] = workers["web"]
+            del(workers["web"])
+        elif runtime == "python" and env.get("WSGI", True) is True:
+            workers["wsgi"] = workers["web"]
+            del(workers["web"])
     return workers
 
 def get_app_env(app):
@@ -374,8 +380,8 @@ def run_app_scripts(app, script_type, env=None):
 
 def get_app_runtime(app):
     app_path = join(APP_ROOT, app)
-    config = get_app_config(app);
-    runtime = config.get("runtime")
+    config = get_app_env(app);
+    runtime = config.get("RUNTIME")
     
     if runtime and runtime.lower() in VALID_RUNTIME:
         return runtime.lower()
@@ -665,7 +671,7 @@ def spawn_app(app, deltas={}):
                             echo("-----> Adding your IP ({}) to nginx ACL".format(remote_ip))
                             acl.append("allow {};".format(remote_ip))
                         acl.extend(["allow 127.0.0.1;","deny all;"])
-                except Exception:
+                except:
                     cf = defaultdict()
                     echo("-----> Could not retrieve CloudFlare IP ranges: {}".format(format_exc()), fg="red")
 
@@ -739,12 +745,10 @@ def spawn_app(app, deltas={}):
     write_config(live, env)
     write_config(scaling, worker_count, ':')
     
-    if env.get("AUTO_RESTART", False):
-        config = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
-        if len(config):
-            echo("-----> Removing uwsgi configs to trigger auto-restart.")
-            for c in config:
-                remove(c)
+    # auto restart
+    if env.get("AUTO_RESTART", True) is True:
+        if cleanup_uwsgi_enabled_ini(app):
+            echo("-----> auto-restart triggered")
 
     # Create new workers
     for k, v in to_create.items():
@@ -764,7 +768,6 @@ def spawn_app(app, deltas={}):
 
     return env
     
-
 def spawn_worker(app, kind, command, env, ordinal=1):
     """Set up and deploy a single worker of a given kind"""
 
@@ -793,7 +796,6 @@ def spawn_worker(app, kind, command, env, ordinal=1):
     if exists(join(env_path, "bin", "activate_this.py")):
         settings.append(('virtualenv', env_path))
 
-    
     if kind == 'wsgi': 
         # for Python only
         python_version = int(env.get('PYTHON_VERSION','3'))
@@ -840,15 +842,18 @@ def spawn_worker(app, kind, command, env, ordinal=1):
             h.write('[uwsgi]\n')
             for k, v in settings:
                 h.write("{k:s} = {v}\n".format(**locals()))
-
         copyfile(available, enabled)
 
-def do_restart(app):
+def cleanup_uwsgi_enabled_ini(app):
     config = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
     if len(config):
-        echo("Restarting app '{}'...".format(app), fg='yellow')
         for c in config:
             remove(c)
+        return True
+
+def do_restart(app):
+    if cleanup_uwsgi_enabled_ini(app):
+        echo("Restarting app '{}'...".format(app), fg='yellow')
         spawn_app(app)
     else:
         echo("Error: app '{}' not deployed!".format(app), fg='red')
@@ -918,12 +923,13 @@ def cli():
 
 # --- User commands ---
 
-@cli.command("ls")
+@cli.command("apps")
 def list_apps():
     """List all apps"""
-    for a in listdir(APP_ROOT):
-        if not a.startswith((".", "_")) or not a.endswith("gokku.py"):
-            echo(a, fg='green')
+    for app in listdir(APP_ROOT):
+        if not app.startswith((".", "_")):
+            status = "running" # not running
+            echo("[%s] - %s" % (status, app), fg='green')
 
 
 @cli.command("config")
@@ -931,8 +937,8 @@ def list_apps():
 def cmd_config(app):
     """<app>: Show configs"""
     
-    app = exit_if_invalid(app)
-    
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'ENV')
     if exists(config_file):
         echo(open(config_file).read().strip(), fg='white')
@@ -945,9 +951,9 @@ def cmd_config(app):
 @click.argument('settings', nargs=-1)
 def cmd_config_set(app, settings):
     """<app> [KEY1=VAL1, ...] - Set config"""
-    
-    app = exit_if_invalid(app)
-    
+
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'ENV')
     env = parse_settings(config_file)
     for s in settings:
@@ -968,7 +974,8 @@ def cmd_config_set(app, settings):
 def cmd_config_unset(app, settings):
     """<app> KEY: Unset config """
     
-    app = exit_if_invalid(app)
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
     
     config_file = join(ENV_ROOT, app, 'ENV')
     env = parse_settings(config_file)
@@ -985,8 +992,8 @@ def cmd_config_unset(app, settings):
 def cmd_config_live(app):
     """<app>: live configuration"""
     
-    app = exit_if_invalid(app)
-
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
     live_config = join(ENV_ROOT, app, 'LIVE_ENV')
     if exists(live_config):
         echo(open(live_config).read().strip(), fg='white')
@@ -999,7 +1006,8 @@ def cmd_config_live(app):
 def cmd_deploy(app):
     """<app>: deploy an app"""
     
-    app = exit_if_invalid(app)
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
     do_deploy(app)
 
 
@@ -1007,7 +1015,7 @@ def cmd_deploy(app):
 @click.argument('app')
 def cmd_destroy(app):
     """<app>: Permanently destroy an app"""
-    exit_if_invalid(app)
+    exit_if_not_exists(app)
     app = sanitize_app_name(app)
 
     echo("**** WARNING ****", fg="red")
@@ -1046,16 +1054,13 @@ def cmd_destroy(app):
         echo("Removing file '{}'".format(acme_link), fg='yellow')
         unlink(acme_link)
 
-
-
-    
 @cli.command("app:logs")
 @click.argument('app')
 def cmd_logs(app):
     """<app>: Tail running logs"""
     
-    app = exit_if_invalid(app)
-
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
     logfiles = glob(join(LOG_ROOT, app, '*.log'))
     if len(logfiles):
         for line in multi_tail(app, logfiles):
@@ -1063,20 +1068,18 @@ def cmd_logs(app):
     else:
         echo("No logs found for app '{}'.".format(app), fg='yellow')
 
-
 @cli.command("app:ps")
 @click.argument('app')
 def cmd_ps(app):
     """<app>: Show process count"""
     
-    app = exit_if_invalid(app)
-
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SCALING')
     if exists(config_file):
         echo(open(config_file).read().strip(), fg='white')
     else:
         echo("Error: no workers found for app '{}'.".format(app), fg='red')
-
 
 @cli.command("app:scale")
 @click.argument('app')
@@ -1084,8 +1087,8 @@ def cmd_ps(app):
 def cmd_ps_scale(app, settings):
     """<app> [<proc>=<count>, ...]: Scale app"""
     
-    app = exit_if_invalid(app)
-
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SCALING')
     worker_count = {k:int(v) for k, v in parse_procfile(config_file).items()}
     deltas = {}
@@ -1105,14 +1108,13 @@ def cmd_ps_scale(app, settings):
             return
     do_deploy(app, deltas)
 
-
 @cli.command("app:restart")
 @click.argument('app')
 def cmd_restart(app):
     """<app>: Restart an app"""
     
-    app = exit_if_invalid(app)
-
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
     do_restart(app)
 
 @cli.command("app:stop")
@@ -1120,7 +1122,8 @@ def cmd_restart(app):
 def cmd_stop(app):
     """<app>: Stop an app"""
 
-    app = exit_if_invalid(app)
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
     config = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
 
     if len(config):
@@ -1130,7 +1133,6 @@ def cmd_stop(app):
     else:
         echo("Error: app '{}' not deployed!".format(app), fg='red')
         
-
 @cli.command("init")
 def cmd_init():
     """Initialize environment"""
@@ -1195,7 +1197,6 @@ def cmd_setup_ssh(public_key_file):
     add_helper(public_key_file)
 
 
-
 @cli.command("version")
 def cmd_version():
     """ Get Version """
@@ -1206,14 +1207,13 @@ def cmd_upgrade():
     """ Upgrade to the latest version of Gokku """
     url = "https://raw.githubusercontent.com/mardix/gokku/master/gokku.py"
     echo("Upgrading %s" % NAME, fg="green")
-    echo("------> downloading file...")
+    echo("------> downloading 'gokku.py'...")
     unlink(GOKKU_SCRIPT)
     urllib.request.urlretrieve(url, GOKKU_SCRIPT)
     chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
     echo("Upgrade complete!", fg="green")
 
 # --- Internal commands ---
-
 
 def cmd_git_hook(app):
     """INTERNAL: Post-receive git hook"""
@@ -1231,7 +1231,6 @@ def cmd_git_hook(app):
         # On each release
         run_app_scripts(app, "release")
         do_deploy(app, newrev=newrev)
-
 
 
 def cmd_git_receive_pack(app):

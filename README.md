@@ -114,11 +114,15 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
 - 0.1.0
   - Initial
   - app.json contains the application configuration
-  - 'app.run.static' only accepts the path of the content
+  - 'app.run.web' is set for static/web/wsgi command. Static accepts one path
   - added 'cli.upgrade' to upgrade to the latest version
   - 'app.json' can now have scripts to run 
   - 'uwsgi' and 'nginx' are hidden, 'app.env' can contain basic key
   - 'app.env.static_paths' is an array
+  - Fixed python virtualenv setup, if the repo was used for a different runtime
+  - Simplifying "web" worker. No need for static or wsgi.
+  - Python default to wsgi worker, to force to a standalone set env.wsgi: false
+  - env.auto_restart is True by default
 ---
 
 License: MIT - Copyright 2019-Forever Mardix

@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.3"
+VERSION = "0.0.4"
 VALID_RUNTIME = ["python", "node", "static", "php", "go"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -1208,6 +1208,7 @@ def cmd_upgrade():
     url = "https://raw.githubusercontent.com/mardix/gokku/master/gokku.py"
     echo("Upgrading %s" % NAME, fg="green")
     echo("------> downloading file...")
+    unlink(GOKKU_SCRIPT)
     urllib.request.urlretrieve(url, GOKKU_SCRIPT)
     chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
     echo("Upgrade complete!", fg="green")

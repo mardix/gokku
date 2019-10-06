@@ -121,6 +121,7 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - reformat uwsgi file name '${app-name}___${kind}.${index}.ini' (3 underscores)
   - static sites have their own directives
   - combined static html & php
+  - Support languages: Python, Static HTML, PHP
 ---
 
 License: MIT - Copyright 2019-Forever Mardix

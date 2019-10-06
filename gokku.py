@@ -333,7 +333,7 @@ def parse_settings(filename, env={}):
     return env
 
 
-def check_requirements(binaries):
+def has_bin_dependencies(binaries):
     """Checks if all the binaries exist and are executable"""
 
     echo("-----> Checking requirements: {}".format(binaries), fg='green')
@@ -418,7 +418,7 @@ def get_app_runtime(app):
         return "python"
     elif exists(join(app_path, 'package.json')) and has_bin_dependencies(['nodejs', 'npm']):
         return "node"          
-    elif (exists(join(app_path, 'Godeps')) or len(glob(join(app_path,'*.go')))) and check_requirements(['go']): 
+    elif (exists(join(app_path, 'Godeps')) or len(glob(join(app_path,'*.go')))) and has_bin_dependencies(['go']): 
         return "go"         
     return "static"
 
@@ -531,7 +531,7 @@ def deploy_node(app, deltas={}):
     node_binary = join(virtualenv_path, "bin", "node")
     installed = check_output("{} -v".format(node_binary), cwd=join(APP_ROOT, app), env=env, shell=True).decode("utf8").rstrip("\n") if exists(node_binary) else ""
 
-    if version and check_requirements(['nodeenv']):
+    if version and has_bin_dependencies(['nodeenv']):
         if not installed.endswith(version):
             started = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
             if installed and len(started):
@@ -542,7 +542,7 @@ def deploy_node(app, deltas={}):
         else:
             echo("-----> Node is installed at {}.".format(version))
 
-    if exists(deps) and check_requirements(['npm']):
+    if exists(deps) and has_bin_dependencies(['npm']):
         if first_time or getmtime(deps) > getmtime(node_path):
             echo("-----> Running npm for '{}'".format(app), fg='green')
             symlink(node_path, node_path_tmp)

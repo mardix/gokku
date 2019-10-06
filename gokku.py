@@ -41,8 +41,8 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.15"
-VALID_RUNTIME = ["python", "node", "go" "static"]
+VERSION = "0.0.16"
+VALID_RUNTIME = ["python", "node", "go", "static"]
 
 GOKKU_SCRIPT = realpath(__file__)
 GOKKU_ROOT = environ.get('GOKKU_ROOT', environ['HOME'])

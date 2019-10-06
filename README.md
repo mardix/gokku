@@ -86,7 +86,7 @@ Once you are ready to deploy, push your code to master
 *(scroll down for a full app.json without the comments)*
 
 
-```json 
+```js 
 // app.json
 
 {

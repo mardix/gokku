@@ -818,6 +818,8 @@ def spawn_worker(app, kind, command, env, ordinal=1):
     if exists(join(env_path, "bin", "activate_this.py")):
         settings.append(('virtualenv', env_path))
 
+    http = '{BIND_ADDRESS:s}:{PORT:s}'.format(**env)
+    
     if kind == 'wsgi': 
         # for Python only
         python_version = int(env.get('PYTHON_VERSION','3'))
@@ -833,12 +835,12 @@ def spawn_worker(app, kind, command, env, ordinal=1):
             if 'UWSGI_ASYNCIO' in env:
                 settings.extend([('plugin','asyncio_python3'),])
 
-        http = '{BIND_ADDRESS:s}:{PORT:s}'.format(**env)
+        
         echo("-----> nginx will talk to uWSGI via %s" % http , fg='yellow')
         settings.extend([('http', http), ('http-socket', http)])
 
     elif kind == 'web':
-        echo("-----> nginx will talk to the 'web' process via {BIND_ADDRESS:s}:{PORT:s}".format(**env), fg='yellow')
+        echo("-----> nginx will talk to the 'web' process via %s" % http, fg='yellow')
         settings.append(('attach-daemon', command))
     elif kind == 'static':
         echo("-----> nginx will serve static HTML/PHP files only".format(**env), fg='yellow')

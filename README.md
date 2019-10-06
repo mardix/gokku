@@ -8,6 +8,19 @@ A very small PaaS to do git push deployments to your own servers. Supports Pytho
 - SSL with LetsEncrypt
 - Instant deploy
 
+### Requirements
+
+- SSH to server
+- Ubuntu 18.04
+
+### Languages
+
+[x] Python 
+[-] Nodejs
+[x] Static HTML
+[x] PHP
+[-] Go
+
 ---
 
 ## On your server
@@ -232,6 +245,8 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - static sites have their own directives
   - combined static html & php
   - Support languages: Python(2, 3), Static HTML, PHP
+
+
 ---
 
 License: MIT - Copyright 2019-Forever Mardix

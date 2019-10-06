@@ -41,8 +41,8 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.14"
-VALID_RUNTIME = ["python", "node", "static", "php", "go"]
+VERSION = "0.0.15"
+VALID_RUNTIME = ["python", "node", "go" "static"]
 
 GOKKU_SCRIPT = realpath(__file__)
 GOKKU_ROOT = environ.get('GOKKU_ROOT', environ['HOME'])
@@ -132,7 +132,7 @@ NGINX_COMMON_FRAGMENT = """
 
   $INTERNAL_NGINX_CUSTOM_CLAUSES
 
-  $INTERNAL_NGINX_HTML_PHP_CLAUSES
+  $INTERNAL_NGINX_STATIC_CLAUSES
 
   $INTERNAL_NGINX_STATIC_MAPPINGS
 
@@ -194,9 +194,9 @@ INTERNAL_NGINX_UWSGI_SETTINGS = """
     uwsgi_param SERVER_NAME $server_name;
 """
 
-INTERNAL_NGINX_HTML_PHP_CLAUSES = """
+INTERNAL_NGINX_STATIC_CLAUSES = """
 
-    # HTML/PHP/Static sites
+    # static: html & php
 
     root $html_root;
     index index.html index.htm index.php;
@@ -213,6 +213,9 @@ INTERNAL_NGINX_HTML_PHP_CLAUSES = """
         fastcgi_param   SCRIPT_NAME        $fastcgi_script_name;
     } 
 
+    location ~ /\.ht {
+            deny all;
+    }
 """
 # -----------------------------------------------------------------------------
 
@@ -414,12 +417,10 @@ def get_app_runtime(app):
     if exists(join(app_path, 'requirements.txt')):
         return "python"
     elif exists(join(app_path, 'package.json')) and has_bin_dependencies(['nodejs', 'npm']):
-        return "node"        
-    elif exists(join(app_path, 'composer.json')):
-        return "php"  
+        return "node"          
     elif (exists(join(app_path, 'Godeps')) or len(glob(join(app_path,'*.go')))) and check_requirements(['go']): 
         return "go"         
-    return None
+    return "static"
 
 
 def do_deploy(app, deltas={}, newrev=None):
@@ -455,23 +456,20 @@ def do_deploy(app, deltas={}, newrev=None):
                 if "web" in workers or "wsgi" in workers or 'static' in workers:
                     if "NGINX_SERVER_NAME" not in env2:
                         echo("ERROR: Missing 'SERVER_NAME' or 'NGINX_SERVER_NAME' when there is a 'web' or 'wsgi' or 'static' application", fg="red")
-                        return
+                        exit(1)
 
                 # python
                 if runtime == "python":
                     deploy_python(app, deltas)
                 # node
                 elif runtime == "node":
-                    deploy_node(app, deltas)
-                # php
-                elif runtime == "php":
-                    deploy_php(app, deltas)                    
+                    deploy_node(app, deltas)                    
                 # go
                 elif runtime == "go":
                     deploy_go(app, deltas)                    
-                # static
-                elif runtime == "static":
-                    deploy_static(app, deltas)
+                # static, php
+                elif runtime in ["static"] :
+                    deploy_static_html(app, deltas)
 
                 # Spawn app
                 run_app_scripts(app, "predeploy")
@@ -577,11 +575,7 @@ def deploy_python(app, deltas={}):
         call('pip install -r {} --upgrade'.format(requirements), cwd=virtualenv_path, shell=True)
 
 
-def deploy_php(app, deltas={}):
-    pass
-
-
-def deploy_static(app, deltas={}):
+def deploy_static_html(app, deltas={}):
     env_path = join(ENV_ROOT, app)
     if not exists(env_path):
         makedirs(env_path)
@@ -707,13 +701,13 @@ def spawn_app(app, deltas={}):
             env['NGINX_ACL'] = " ".join(acl)
 
             env['INTERNAL_NGINX_STATIC_MAPPINGS'] = ''
-            env['INTERNAL_NGINX_HTML_PHP_CLAUSES'] = ''
+            env['INTERNAL_NGINX_STATIC_CLAUSES'] = ''
 
-            # static requires just the path. It will set the url as root
+            # static requires just the path. It will set the url as web root
             if 'static' in workers and runtime == 'static':
                 static_path = workers['static'].strip("/").rstrip("/")
                 html_root = join(app_path, static_path)
-                env['INTERNAL_NGINX_HTML_PHP_CLAUSES'] =  expandvars(INTERNAL_NGINX_HTML_PHP_CLAUSES, locals())
+                env['INTERNAL_NGINX_STATIC_CLAUSES'] =  expandvars(INTERNAL_NGINX_STATIC_CLAUSES, locals())
 
 
             # Get a mapping of [/url1:path1, /url2:path2, ...] ...
@@ -729,7 +723,7 @@ def spawn_app(app, deltas={}):
                             static_path = join(app_path, static_path)
                         env['INTERNAL_NGINX_STATIC_MAPPINGS'] = env['INTERNAL_NGINX_STATIC_MAPPINGS'] + expandvars(INTERNAL_NGINX_STATIC_MAPPING, locals())
                 except Exception as e:
-                    print("Error {} in static_paths spec: should be a list [/url1:path1, /url2:path2, ...], ignoring.".format(e))
+                    echo("Error {} in static_paths spec: should be a list [/url1:path1, /url2:path2, ...], ignoring.".format(e), fg="red")
                     env['INTERNAL_NGINX_STATIC_MAPPINGS'] = ''
 
             env['INTERNAL_NGINX_CUSTOM_CLAUSES'] = expandvars(open(join(app_path, env["NGINX_INCLUDE_FILE"])).read(), env) if env.get("NGINX_INCLUDE_FILE") else ""
@@ -855,7 +849,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
         echo("-----> nginx will talk to the 'web' process via {BIND_ADDRESS:s}:{PORT:s}".format(**env), fg='yellow')
         settings.append(('attach-daemon', command))
     elif kind == 'static':
-        echo("-----> nginx serving static files only".format(**env), fg='yellow')
+        echo("-----> nginx will serve static HTML/PHP files only".format(**env), fg='yellow')
     else:
         settings.append(('attach-daemon', command))
         
@@ -972,7 +966,7 @@ def list_apps():
                     running = True
             else:
                 running = app in enabled
-            echo("[%s][%s] : %s" % ("running" if running else "not running", runtime, app), fg="green" if running else "red")
+            echo("[%s] [%s]: %s" % ("running" if running else "not running", runtime, app), fg="green" if running else "red")
 
 
 @cli.command("config")

@@ -13,7 +13,7 @@
     "env": {
       // server_name (string): the server name without http
       "server_name": "",
-      // runtime: python|node|php|go|static
+      // runtime: python|node|go|static
       "runtime": "python",
       // python_version: if runtime is python, specify python version: 3|2
       "python_version": "3",
@@ -21,7 +21,7 @@
       "node_version": "",
       // auto_restart (bool): to force server restarts when deploying
       "auto_restart": false,
-      // static_paths (array): specify list off path, [/url:path, ...]
+      // static_paths (array): specify list of static path to expose, [/url:path, ...]
       "static_paths": ["/url:path", "/url2:path2", "(alias to nginx.static_paths)"],
       // https_only (bool): when true, it will redirect http to https
       "https_only": true,
@@ -30,14 +30,14 @@
       // wsgi (bool): if runtime is python by default it will use wsgi, if false it will fallback to the command provided
       "wsgi": true,
 
-      // nginx (object): nginx specific config
+      // nginx (object): nginx specific config. can be omitted
       "nginx": {
         "https_only": "",
         "cloudflare_acl": false,
         "include_file": ""
       },  
 
-      // uwsgi (object): uwsgi specific config
+      // uwsgi (object): uwsgi specific config. can be omitted
       "uwsgi": {
         "threads": "4",
         "gevent": true,
@@ -57,17 +57,17 @@
       "postdeploy": []
     },
 
-    // run: processes to run. One worker for each type
-    // 'web' is special, it’s the only process type that can receive external HTTP traffic   
+    // run: processes to run. 
+    // 'web' is special, it’s the only process type that can receive external HTTP traffic  
+    // all other process name will be regular worker. The name doesn't matter 
     "run": {
       // web (string): it’s the only process type that can receive external HTTP traffic
       // -> app:app (for wsgi/python application)
       // -> node server.js (For other web app which requires a server command)
-      // -> /dir-name-or-no-name-for-root 
-      //    (only one path. For other paths, add to env.static_paths)
+      // -> /web-root-dir-name (for static html+php)
       "web": "",
-      // worker* (string): command to run, with a name. 
-      // For each command, create a new entry
+
+      // worker* (string): command to run, with a name. The name doesn't matter
       "worker": ""
     }
   }

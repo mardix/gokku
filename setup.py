@@ -14,7 +14,7 @@ __summary__ = "A very small PaaS to do git push app deployments to your own serv
 __uri__ = "https://github.com/mardix/gokku/"
 setup(
     name="gokku",
-    version="0.0.2",
+    version="0.1.0",
     license="MIT",
     author="Mardix",
     author_email="mcx2082@gmail.com",
@@ -23,7 +23,6 @@ setup(
     url="https://github.com/mardix/gokku/",
     download_url='https://github.com/mardix/gokku/tarball/master',
     py_modules=['gokku'],
-    entry_points=dict(console_scripts=['gokku=gokku:main']),
     packages=find_packages(),
     install_requires=[
         'virtualenv',

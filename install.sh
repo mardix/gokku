@@ -1,5 +1,5 @@
 
-echo "Gokku 0.1.0 installer"
+echo "Gokku 0.2.0 installer"
 
 apt-get update
 apt-get install -y wget curl cron build-essential certbot git incron \
@@ -7,7 +7,8 @@ apt-get install -y wget curl cron build-essential certbot git incron \
    python-certbot-nginx python-dev python-pip python-virtualenv \
    python3-dev python3-pip python3-click python3-virtualenv \
    uwsgi uwsgi-plugin-asyncio-python3 uwsgi-plugin-gevent-python \
-   uwsgi-plugin-python uwsgi-plugin-python3 uwsgi-plugin-tornado-python
+   uwsgi-plugin-python uwsgi-plugin-python3 uwsgi-plugin-tornado-python\
+   php-fpm
 apt-get update
 
 PAAS_USERNAME=gokku

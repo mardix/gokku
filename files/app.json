@@ -5,8 +5,8 @@
   "gokku": {
     "env": {
       "server_name": "",
-      "runtime": "python",
-      "python_version": 3,
+      "runtime": "static",
+      "python_version": "3",
       "node_version": "",
       "auto_restart": true,
       "static_paths": [],
@@ -14,14 +14,12 @@
       "threads": 4,
       "wsgi": true,
       "nginx": {
-        "https_only": "",
         "cloudflare_acl": false,
         "include_file": ""
       },  
       "uwsgi": {
-        "threads": "4",
-        "gevent": true,
-        "asyncio": true
+        "gevent": false,
+        "asyncio": false
       }    
     },
     "scripts": {
@@ -31,9 +29,8 @@
       "postdeploy": []
     },    
     "run": {
-      "web": "(string) [app:app (for wsgi/python application) || node server.js (For other web app which requires a server command) || /dir-name-or-no-name-for-root (only one path. For other paths, add to env.static_paths)]",
-      "worker": "(string) script-command",
-      "worker2": "(string) script-command"
+      "web": "/",
+      "worker": ""
     }
   }
 }

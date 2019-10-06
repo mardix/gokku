@@ -8,7 +8,7 @@ apt-get install -y wget curl cron build-essential certbot git incron \
    python3-dev python3-pip python3-click python3-virtualenv \
    uwsgi uwsgi-plugin-asyncio-python3 uwsgi-plugin-gevent-python \
    uwsgi-plugin-python uwsgi-plugin-python3 uwsgi-plugin-tornado-python\
-   php-fpm
+   php-fpm nodejs npm
 apt-get update
 
 PAAS_USERNAME=gokku

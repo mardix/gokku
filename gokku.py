@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.18"
+VERSION = "0.0.20"
 VALID_RUNTIME = ["python", "node", "go", "static"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -333,17 +333,10 @@ def parse_settings(filename, env={}):
     return env
 
 
-def has_bin_dependencies(binaries):
+def bin_exists(binaries):
     """Checks if all the binaries exist and are executable"""
-
-    echo("-----> Checking requirements: {}".format(binaries), fg='green')
     requirements = list(map(which, binaries))
-    echo(str(requirements))
-
-    if None in requirements:
-        return False
-    return True
-    
+    return False if None in requirements else True
 
 def get_app_config(app):
     """ Return the info from app.json """
@@ -416,9 +409,9 @@ def get_app_runtime(app):
         return runtime.lower()
     if exists(join(app_path, 'requirements.txt')):
         return "python"
-    elif exists(join(app_path, 'package.json')) and has_bin_dependencies(['nodejs', 'npm']):
+    elif exists(join(app_path, 'package.json')) and bin_exists(['nodejs', 'npm']):
         return "node"          
-    elif (exists(join(app_path, 'Godeps')) or len(glob(join(app_path,'*.go')))) and has_bin_dependencies(['go']): 
+    elif (exists(join(app_path, 'Godeps')) or len(glob(join(app_path,'*.go')))) and bin_exists(['go']): 
         return "go"         
     return "static"
 
@@ -531,7 +524,7 @@ def deploy_node(app, deltas={}):
     node_binary = join(virtualenv_path, "bin", "node")
     installed = check_output("{} -v".format(node_binary), cwd=join(APP_ROOT, app), env=env, shell=True).decode("utf8").rstrip("\n") if exists(node_binary) else ""
 
-    if version and has_bin_dependencies(['nodeenv']):
+    if version and bin_exists(['nodeenv']):
         if not installed.endswith(version):
             started = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
             if installed and len(started):
@@ -542,12 +535,12 @@ def deploy_node(app, deltas={}):
         else:
             echo("-----> Node is installed at {}.".format(version))
 
-    if exists(deps) and has_bin_dependencies(['npm']):
+    if exists(deps) and bin_exists(['npm']):
         if first_time or getmtime(deps) > getmtime(node_path):
-            echo("-----> Running npm for '{}'".format(app), fg='green')
+            echo("-----> Running npm install for '{}'".format(app), fg='green')
             symlink(node_path, node_path_tmp)
             call('npm install', cwd=join(APP_ROOT, app), env=env, shell=True)
-            unlink(node_path_tmp)
+            #unlink(node_path_tmp)
 
 
 def deploy_python(app, deltas={}):

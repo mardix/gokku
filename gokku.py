@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.16"
+VERSION = "0.0.17"
 VALID_RUNTIME = ["python", "node", "go", "static"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -207,14 +207,15 @@ INTERNAL_NGINX_STATIC_CLAUSES = """
     # Pass PHP scripts to PHP-FPM
     location ~* \.php$ {
         fastcgi_index   index.php;
-        fastcgi_pass    127.0.0.1:9000;
-        include         fastcgi_params;
-        fastcgi_param   SCRIPT_FILENAME    $document_root$fastcgi_script_name;
-        fastcgi_param   SCRIPT_NAME        $fastcgi_script_name;
+        #fastcgi_pass    127.0.0.1:9000;
+        fastcgi_pass unix:/var/run/php/php7.2-fpm.sock;
+        #include         fastcgi_params;
+        #fastcgi_param   SCRIPT_FILENAME    $document_root$fastcgi_script_name;
+        #fastcgi_param   SCRIPT_NAME        $fastcgi_script_name;
     } 
 
     location ~ /\.ht {
-            deny all;
+        deny all;
     }
 """
 # -----------------------------------------------------------------------------

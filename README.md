@@ -16,9 +16,13 @@ A very small PaaS to do git push deployments to your own servers. Supports Pytho
 ### Languages
 
 [x] Python 
+
 [-] Nodejs
+
 [x] Static HTML
+
 [x] PHP
+
 [-] Go
 
 ---

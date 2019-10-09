@@ -42,7 +42,7 @@ from grp import getgrgid
 
 NAME = "Gokku"
 VERSION = "0.0.21"
-VALID_RUNTIME = ["python", "node", "go", "static"]
+VALID_RUNTIME = ["python", "node", "static"]
 
 GOKKU_SCRIPT = realpath(__file__)
 GOKKU_ROOT = environ.get('GOKKU_ROOT', environ['HOME'])
@@ -762,7 +762,7 @@ def spawn_app(app, deltas={}):
             del env[k]
 
     # Save current settings
-    write_config(live, env)
+    write_config(live,  )
     write_config(scaling, worker_count, ':')
     
     # auto restart
@@ -948,7 +948,7 @@ def cli():
 
 @cli.command("apps")
 def list_apps():
-    """List all apps"""
+    """List all apps: [apps]"""
     enabled = { a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a }
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
@@ -966,7 +966,7 @@ def list_apps():
 @cli.command("config")
 @click.argument('app')
 def cmd_config(app):
-    """<app>: Show configs"""
+    """Show config: [config <app>]"""
     
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -977,11 +977,11 @@ def cmd_config(app):
         echo("Warning: app '{}' not deployed, no config found.".format(app), fg='yellow')
 
 
-@cli.command("config:set")
+@cli.command("set")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_set(app, settings):
-    """<app> [KEY1=VAL1, ...] - Set config"""
+    """Set config: [set <app> [{KEY1}={VAL1}, ...]]"""
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -999,11 +999,11 @@ def cmd_config_set(app, settings):
     do_deploy(app)
 
 
-@cli.command("config:unset")
+@cli.command("unset")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_unset(app, settings):
-    """<app> KEY: Unset config """
+    """Unset config: [unset <app> {KEY}] """
     
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1018,10 +1018,10 @@ def cmd_config_unset(app, settings):
     do_deploy(app)
 
 
-@cli.command("config:live")
+@cli.command("config ")
 @click.argument('app')
 def cmd_config_live(app):
-    """<app>: live configuration"""
+    """live configuration: [config <app>] """
     
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1032,20 +1032,20 @@ def cmd_config_live(app):
         echo("Warning: app '{}' not deployed, no config found.".format(app), fg='yellow')
 
 
-@cli.command("app:deploy")
+@cli.command("deploy")
 @click.argument('app')
 def cmd_deploy(app):
-    """<app>: deploy an app"""
+    """Deploy app: [deploy <app>]"""
     
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     do_deploy(app)
 
 
-@cli.command("app:destroy")
+@cli.command("destroy")
 @click.argument('app')
 def cmd_destroy(app):
-    """<app>: Permanently destroy an app"""
+    """Destroy app: [destroy <app>]"""
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
 
@@ -1085,10 +1085,10 @@ def cmd_destroy(app):
         echo("Removing file '{}'".format(acme_link), fg='yellow')
         unlink(acme_link)
 
-@cli.command("app:logs")
+@cli.command("logs")
 @click.argument('app')
 def cmd_logs(app):
-    """<app>: Tail running logs"""
+    """Read tail logs: [logs <app>]"""
     
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1099,10 +1099,10 @@ def cmd_logs(app):
     else:
         echo("No logs found for app '{}'.".format(app), fg='yellow')
 
-@cli.command("app:ps")
+@cli.command("ps")
 @click.argument('app')
 def cmd_ps(app):
-    """<app>: Show process count"""
+    """Show process count: [ps <app>]"""
     
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1112,11 +1112,11 @@ def cmd_ps(app):
     else:
         echo("Error: no workers found for app '{}'.".format(app), fg='red')
 
-@cli.command("app:scale")
+@cli.command("scale")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_ps_scale(app, settings):
-    """<app> [<proc>=<count>, ...]: Scale app"""
+    """Scale processes count: [<app> [<proc>=<count>, ...]]"""
     
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1139,10 +1139,10 @@ def cmd_ps_scale(app, settings):
             return
     do_deploy(app, deltas)
 
-@cli.command("app:restart")
+@cli.command("restart")
 @click.argument('app')
 def cmd_restart(app):
-    """<app>: Restart an app"""
+    """Restart app: [restart <app>]"""
     
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1150,10 +1150,10 @@ def cmd_restart(app):
     echo("Restarting app '{}'...".format(app), fg='yellow')
     spawn_app(app)
 
-@cli.command("app:stop")
+@cli.command("stop")
 @click.argument('app')
 def cmd_stop(app):
-    """<app>: Stop an app"""
+    """Stop app: [stop <app>]"""
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)

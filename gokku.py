@@ -1116,7 +1116,7 @@ def cmd_ps(app):
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_ps_scale(app, settings):
-    """Scale: [<app> [<proc>=<count>, ...]]"""
+    """Scale processes: [<app> [<proc>=<count>, ...]]"""
     
     exit_if_not_exists(app)
     app = sanitize_app_name(app)

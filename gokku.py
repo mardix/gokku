@@ -543,6 +543,7 @@ def deploy_node(app, deltas={}):
         if first_time or getmtime(deps) > getmtime(node_path):
             echo("-----> Running npm install for '{}'".format(app), fg='green')
             symlink(node_path, node_path_tmp)
+            print('X', node_path, node_path_tmp, virtualenv_path, env)
             call('npm install', cwd=virtualenv_path, env=env, shell=True)
             unlink(node_path_tmp)
 

@@ -569,8 +569,8 @@ def deploy_node(app, deltas={}):
         'NPM_CONFIG_PREFIX': abspath(join(node_path, "..")),
         "PATH": ':'.join([join(virtualenv_path, "bin"), join(node_path, ".bin"),environ['PATH']])
     }
-    if exists(env_file):
-        env.update(parse_settings(env_file, env))
+    #if exists(env_file):
+    env.update(get_app_env(app))
 
     version = env.get("NODE_VERSION")
     node_binary = join(virtualenv_path, "bin", "node")

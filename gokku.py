@@ -587,7 +587,7 @@ def deploy_node(app, deltas={}):
         else:
             echo("-----> Node is installed at {}.".format(version))
 
-    if exists(deps) and check_requirements(['npm']):
+    if exists(deps) and bin_exists(['npm']):
         if first_time or getmtime(deps) > getmtime(node_path):
             echo("-----> Running npm for '{}'".format(app), fg='green')
             symlink(node_path, node_path_tmp)

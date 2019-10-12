@@ -33,7 +33,7 @@ A very small PaaS to do git push deployments to your own servers. Supports Pytho
   logs     Read tail logs: [logs <app>]
   ps       Show process count: [ps <app>]
   restart  Restart app: [restart <app>]
-  scale    Scale: [<app> [<proc>=<count>, ...]]
+  scale    Scale processes: [<app> [<proc>=<count>,...
   set      Set config: [set <app> [{KEY1}={VAL1}, ...]]
   set-ssh  Set up a new SSH key (use - for stdin)
   stop     Stop app: [stop <app>]
@@ -43,9 +43,11 @@ A very small PaaS to do git push deployments to your own servers. Supports Pytho
 ```
 ---
 
-## On your server
+## Setup
 
-Platform: **Ubuntu 18.04** or latest
+### 1. Install On Server/Remote machine
+
+To start off, install Gokku on the server/remote machine.
 
 The Gokku install.sh script creates a **gokku** user on the system and installs all the necessary packages.
 
@@ -57,9 +59,8 @@ chmod 755 install.sh
 ./install.sh
 ```
 
----
 
-## Application 
+### 2. Prepare application on local environement 
 
 ### Git Remote 
 
@@ -81,7 +82,7 @@ Example
 git remote add gokku gokku@example.com:flask-example
 ```
 
-### Edit app.json
+### 3. Edit app.json
 
 At a minimum, the `app.json` should look like this. 
 If the root directory contains `requirements.txt` it will use Python, `package.json` will use Node, else it will use it as STATIC site to serve HTML & PHP. 
@@ -103,7 +104,7 @@ If the root directory contains `requirements.txt` it will use Python, `package.j
 
 ```
 
-### Deploy application
+### 4. Deploy application
 
 Once you are ready to deploy, push your code to master
 
@@ -265,6 +266,7 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - static sites have their own directives
   - combined static html & php
   - Support languages: Python(2, 3), Static HTML, PHP
+  - simplify command name
 
 
 ---

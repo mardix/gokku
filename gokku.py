@@ -762,7 +762,7 @@ def spawn_app(app, deltas={}):
             del env[k]
 
     # Save current settings
-    write_config(live,  )
+    write_config(live, env)
     write_config(scaling, worker_count, ':')
     
     # auto restart

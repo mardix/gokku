@@ -544,7 +544,7 @@ def deploy_node(app, deltas={}):
             echo("-----> Running npm install for '{}'".format(app), fg='green')
             symlink(node_path, node_path_tmp)
             call('npm install', cwd=virtualenv_path, env=env, shell=True)
-            #unlink(node_path_tmp)
+            unlink(node_path_tmp)
 
 
 def deploy_python(app, deltas={}):

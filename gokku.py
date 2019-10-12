@@ -498,8 +498,6 @@ def deploy_go(app, deltas={}):
             call('godep update ...', cwd=join(APP_ROOT, app), env=env, shell=True)
 
 
-
-
 def deploy_node(app, deltas={}):
     """Deploy a Node  application"""
 

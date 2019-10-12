@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.21"
+VERSION = "0.0.22"
 VALID_RUNTIME = ["python", "node", "static"]
 
 GOKKU_SCRIPT = realpath(__file__)

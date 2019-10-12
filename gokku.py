@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.25"
+VERSION = "0.0.24"
 VALID_RUNTIME = ["python", "node", "static"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -409,7 +409,7 @@ def get_app_runtime(app):
         return runtime.lower()
     if exists(join(app_path, 'requirements.txt')):
         return "python"
-    elif exists(join(app_path, 'package.json')) and bin_exists(['nodejs', 'npm']):
+    elif exists(join(app_path, 'package.json')):
         return "node"          
     elif (exists(join(app_path, 'Godeps')) or len(glob(join(app_path,'*.go')))) and bin_exists(['go']): 
         return "go"         
@@ -498,19 +498,18 @@ def deploy_go(app, deltas={}):
             call('godep update ...', cwd=join(APP_ROOT, app), env=env, shell=True)
 
 
+
+
 def deploy_node(app, deltas={}):
     """Deploy a Node  application"""
 
     virtualenv_path = join(ENV_ROOT, app)
     node_path = join(ENV_ROOT, app, "node_modules")
     node_path_tmp = join(APP_ROOT, app, "node_modules")
+    env_file = join(APP_ROOT, app, 'ENV')
     deps = join(APP_ROOT, app, 'package.json')
 
     first_time = False
-    if not exists(virtualenv_path):
-        echo("-----> Creating virtualenv_path for '{}'".format(app), fg='green')
-        makedirs(virtualenv_path)
-        first_time = True    
     if not exists(node_path):
         echo("-----> Creating node_modules for '{}'".format(app), fg='green')
         makedirs(node_path)
@@ -523,29 +522,29 @@ def deploy_node(app, deltas={}):
         "PATH": ':'.join([join(virtualenv_path, "bin"), join(node_path, ".bin"),environ['PATH']])
     }
 
-    version = env.get("NODE_VERSION")
-    node_binary = join(virtualenv_path, "bin", "node")
-    installed = check_output("{} -v".format(node_binary), cwd=join(APP_ROOT, app), env=env, shell=True).decode("utf8").rstrip("\n") if exists(node_binary) else ""
+    env2 = get_app_env(app)
+    version = env2.get("NODE_VERSION")
 
-    if version and bin_exists(['nodeenv']):
+    if version:
+        node_binary = join(virtualenv_path, "bin", "node")
+        installed = check_output("{} -v".format(node_binary), cwd=join(APP_ROOT, app), env=env, shell=True).decode("utf8").rstrip("\n") if exists(node_binary) else ""
+
         if not installed.endswith(version):
             started = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
             if installed and len(started):
                 echo("Warning: Can't update node with app running. Stop the app & retry.", fg='yellow')
             else:
-                echo("-----> Installing node version '{NODE_VERSION:s}' using nodeenv".format(**env), fg='green')
-                call("nodeenv --prebuilt --node={NODE_VERSION:s} --clean-src --force {VIRTUAL_ENV:s}".format(**env), cwd=virtualenv_path, env=env, shell=True)
+                echo("-----> Installing node version '%s' using nodeenv" % version , fg='green')
+                call("nodeenv --prebuilt --node=%s --clean-src --force %s" % (version, virtualenv_path), cwd=virtualenv_path, env=env, shell=True)
         else:
             echo("-----> Node is installed at {}.".format(version))
 
-    if exists(deps) and bin_exists(['npm']):
+    if exists(deps):
         if first_time or getmtime(deps) > getmtime(node_path):
-            echo("-----> Running npm install for '{}'".format(app), fg='green')
+            echo("-----> Running npm for '{}'".format(app), fg='green')
             symlink(node_path, node_path_tmp)
-            call('npm install', cwd=virtualenv_path, env=env, shell=True)
+            call('npm install', cwd=join(APP_ROOT, app), env=env, shell=True)
             unlink(node_path_tmp)
-
-
 
 def deploy_python(app, deltas={}):
     """Deploy a Python application"""

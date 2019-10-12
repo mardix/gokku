@@ -509,7 +509,7 @@ def deploy_node(app, deltas={}):
     first_time = False
     if not exists(virtualenv_path):
         echo("-----> Creating virtualenv_path for '{}'".format(app), fg='green')
-        makedirs(node_path)
+        makedirs(virtualenv_path)
         first_time = True    
     if not exists(node_path):
         echo("-----> Creating node_modules for '{}'".format(app), fg='green')

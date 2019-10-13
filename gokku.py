@@ -847,7 +847,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
         ('log-maxsize',         env.get('UWSGI_LOG_MAXSIZE', UWSGI_LOG_MAXSIZE)),
         ('logto',               '{log_file:s}.{ordinal:d}.log'.format(**locals())),
         ('log-backupname',      '{log_file:s}.{ordinal:d}.log.old'.format(**locals())),
-        ('stats',               stats_path),
+        ('stats',               '/tmp/stats.socket'),
         ('memory-report',       'true'),
         ('socket', '3030')
     ]

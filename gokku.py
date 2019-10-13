@@ -7,13 +7,13 @@ A very small PaaS to do git push deployments to your own servers.
 
 try:
     from sys import version_info
-    assert version_info >= (3,5)
+    assert version_info >= (3, 5)
 except AssertionError:
     exit("Gokku requires Python >= 3.5")
-    
+
 import sys
 import click
-import json 
+import json
 from click import secho as echo
 from collections import defaultdict, deque
 from datetime import datetime
@@ -29,7 +29,7 @@ from shutil import copyfile, rmtree, which
 from socket import socket, AF_INET, SOCK_STREAM
 from sys import argv, stdin, stdout, stderr, version_info, exit
 from stat import S_IRUSR, S_IWUSR, S_IXUSR
-from subprocess import call, check_output, Popen, STDOUT, PIPE 
+from subprocess import call, check_output, Popen, STDOUT, PIPE
 from tempfile import NamedTemporaryFile
 from traceback import format_exc
 from time import sleep
@@ -41,12 +41,13 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.24"
-VALID_RUNTIME = ["python", "node", "static"]
+VERSION = "0.0.25"
+VALID_RUNTIME = ["python", "node", "static", "shell"]
+
 
 GOKKU_SCRIPT = realpath(__file__)
 GOKKU_ROOT = environ.get('GOKKU_ROOT', environ['HOME'])
-GOKKU_BIN = join(environ['HOME'],'bin')
+GOKKU_BIN = join(environ['HOME'], 'bin')
 APP_ROOT = abspath(join(GOKKU_ROOT, "apps"))
 DOT_ROOT = abspath(join(GOKKU_ROOT, ".gokku"))
 ENV_ROOT = abspath(join(DOT_ROOT, "envs"))
@@ -57,7 +58,7 @@ UWSGI_AVAILABLE = abspath(join(DOT_ROOT, "uwsgi-available"))
 UWSGI_ENABLED = abspath(join(DOT_ROOT, "uwsgi-enabled"))
 UWSGI_ROOT = abspath(join(DOT_ROOT, "uwsgi"))
 UWSGI_LOG_MAXSIZE = '1048576'
-ACME_ROOT = environ.get('ACME_ROOT', join(environ['HOME'],'.acme.sh'))
+ACME_ROOT = environ.get('ACME_ROOT', join(environ['HOME'], '.acme.sh'))
 ACME_WWW = abspath(join(DOT_ROOT, "acme"))
 
 if 'sbin' not in environ['PATH']:
@@ -219,9 +220,15 @@ INTERNAL_NGINX_STATIC_CLAUSES = """
 """
 # -----------------------------------------------------------------------------
 
+
+def any_in_list(l1, t2):
+    return any((True for x in l1 if x in t2))
+
+
 def sanitize_app_name(app):
     """Sanitize the app name and build matching path"""
-    return "".join(c for c in app if c.isalnum() or c in ('.','_')).rstrip().lstrip('/')
+    return "".join(c for c in app if c.isalnum() or c in ('.', '_')).rstrip().lstrip('/')
+
 
 def exit_if_not_exists(app):
     """Utility function for error checking upon command startup."""
@@ -233,9 +240,9 @@ def exit_if_not_exists(app):
 
 def get_free_port(address=""):
     """Find a free TCP port (entirely at random)"""
-    
+
     s = socket(AF_INET, SOCK_STREAM)
-    s.bind((address,0))
+    s.bind((address, 0))
     port = s.getsockname()[1]
     s.close()
     return port
@@ -243,7 +250,7 @@ def get_free_port(address=""):
 
 def write_config(filename, bag, separator='='):
     """Helper for writing out config files"""
-    
+
     with open(filename, 'w') as h:
         for k, v in bag.items():
             h.write('{k:s}{separator:s}{v}\n'.format(**locals()))
@@ -251,13 +258,14 @@ def write_config(filename, bag, separator='='):
 
 def setup_authorized_keys(ssh_fingerprint, script_path, pubkey):
     """Sets up an authorized_keys file to redirect SSH commands"""
-    
-    authorized_keys = join(environ['HOME'],'.ssh','authorized_keys')
+
+    authorized_keys = join(environ['HOME'], '.ssh', 'authorized_keys')
     if not exists(dirname(authorized_keys)):
         makedirs(dirname(authorized_keys))
-    # Restrict features and force all SSH commands to go through our script 
+    # Restrict features and force all SSH commands to go through our script
     with open(authorized_keys, 'a') as h:
-        h.write("""command="FINGERPRINT={ssh_fingerprint:s} NAME=default {script_path:s} $SSH_ORIGINAL_COMMAND",no-agent-forwarding,no-user-rc,no-X11-forwarding,no-port-forwarding {pubkey:s}\n""".format(**locals()))
+        h.write(
+            """command="FINGERPRINT={ssh_fingerprint:s} NAME=default {script_path:s} $SSH_ORIGINAL_COMMAND",no-agent-forwarding,no-user-rc,no-X11-forwarding,no-port-forwarding {pubkey:s}\n""".format(**locals()))
     chmod(dirname(authorized_keys), S_IRUSR | S_IWUSR | S_IXUSR)
     chmod(authorized_keys, S_IRUSR | S_IWUSR)
 
@@ -277,12 +285,12 @@ def install_acme_sh():
         call("./acme.sh --install", cwd=GOKKU_ROOT, shell=True)
         remove(dest)
     except Exception as e:
-        echo('Unable to download acme.sh: %s' % e, type="error") 
+        echo('Unable to download acme.sh: %s' % e, type="error")
 
 
 def parse_procfile(filename):
     """Parses a Procfile and returns the worker types. Only one worker of each type is allowed."""
-    
+
     workers = {}
     if not exists(filename):
         return workers
@@ -294,15 +302,15 @@ def parse_procfile(filename):
             except:
                 echo("Warning: unrecognized Procfile entry '{}'".format(line), fg='yellow')
 
-    return workers 
+    return workers
 
 
 def expandvars(buffer, env, default=None, skip_escaped=False):
     """expand shell-style environment variables in a buffer"""
-    
+
     def replace_var(match):
         return env.get(match.group(2) or match.group(1), match.group(0) if default is None else default)
-    
+
     pattern = (r'(?<!\\)' if skip_escaped else '') + r'\$(\w+|\{([^}]*)\})'
     return sub(pattern, replace_var, buffer)
 
@@ -322,7 +330,7 @@ def parse_settings(filename, env={}):
         return {}
     with open(filename, 'r') as settings:
         for line in settings:
-            if '#' == line[0] or len(line.strip()) == 0: # ignore comments and newlines
+            if '#' == line[0] or len(line.strip()) == 0:  # ignore comments and newlines
                 continue
             try:
                 k, v = map(lambda x: x.strip(), line.split("=", 1))
@@ -331,12 +339,6 @@ def parse_settings(filename, env={}):
                 echo("Error: malformed setting '{}', ignoring file.".format(line), fg='red')
                 return {}
     return env
-
-
-def bin_exists(binaries):
-    """Checks if all the binaries exist and are executable"""
-    requirements = list(map(which, binaries))
-    return False if None in requirements else True
 
 def get_app_config(app):
     """ Return the info from app.json """
@@ -347,22 +349,8 @@ def get_app_config(app):
 
 
 def get_app_workers(app):
-    """ Returns the applications to run 
-        For web, it will pick the type of web to run: web/wsgi/static
-        For python, set wsgi if env.wsgi is not False
-    """
-    workers = get_app_config(app)["run"]
-    env = get_app_env(app)
-    runtime = get_app_runtime(app)
-
-    if "web" in workers:
-        if runtime == "static":
-            workers["static"] = workers["web"]
-            del(workers["web"])
-        elif runtime == "python" and env.get("WSGI", True) is True:
-            workers["wsgi"] = workers["web"]
-            del(workers["web"])
-    return workers
+    """ Returns the applications to run """
+    return get_app_config(app)["run"]
 
 
 def get_app_env(app):
@@ -372,21 +360,22 @@ def get_app_env(app):
     if "env" in config:
         for k, v in config["env"].items():
             if isinstance(v, dict):
-                env.update({("%s_%s" % (k, vk)).upper(): vv for vk, vv in v.items() })
+                env.update({("%s_%s" % (k, vk)).upper(): vv for vk, vv in v.items()})
             else:
                 env[k.upper()] = v
 
         mapper = {
             "SERVER_NAME": "NGINX_SERVER_NAME",
+            "DOMAIN_NAME": "NGINX_SERVER_NAME",
             "STATIC_PATHS": "NGINX_STATIC_PATHS",
             "HTTPS_ONLY": "NGINX_HTTPS_ONLY",
             "THREADS": "UWSGI_THREADS",
             "GEVENT": "UWSGI_GEVENT",
             "ASYNCIO": "UWSGI_ASYNCIO"
-        }        
+        }
         for k, v in mapper.items():
             if k in env and v not in env:
-                env[v] = env[k] 
+                env[v] = env[k]
 
     return env
 
@@ -402,30 +391,30 @@ def run_app_scripts(app, script_type, env=None):
 
 def get_app_runtime(app):
     app_path = join(APP_ROOT, app)
-    config = get_app_env(app);
+    config = get_app_env(app)
     runtime = config.get("RUNTIME")
-    
+
     if runtime and runtime.lower() in VALID_RUNTIME:
         return runtime.lower()
     if exists(join(app_path, 'requirements.txt')):
         return "python"
     elif exists(join(app_path, 'package.json')):
-        return "node"          
-    elif (exists(join(app_path, 'Godeps')) or len(glob(join(app_path,'*.go')))) and bin_exists(['go']): 
-        return "go"         
+        return "node"
     return "static"
 
 
 def do_deploy(app, deltas={}, newrev=None):
     """Deploy an app by resetting the work directory"""
-    
-    app_path = join(APP_ROOT, app)
-    config = get_app_config(app)
-    workers = get_app_workers(app)
-    env2 = get_app_env(app)
-    log_path = join(LOG_ROOT, app)
 
-    env = {'GIT_WORK_DIR': app_path}
+    app_path = join(APP_ROOT, app)
+    env_path = join(ENV_ROOT, app)   
+    log_path = join(LOG_ROOT, app)
+    # list of paths that must exist
+    ensure_paths = [env_path, log_path]
+    
+    env = {
+        'GIT_WORK_DIR': app_path
+    }
     if exists(app_path):
         echo("-----> Deploying app '{}'".format(app), fg='green')
         call('git fetch --quiet', cwd=app_path, env=env, shell=True)
@@ -434,35 +423,49 @@ def do_deploy(app, deltas={}, newrev=None):
         call('git submodule init', cwd=app_path, env=env, shell=True)
         call('git submodule update', cwd=app_path, env=env, shell=True)
 
+        config = get_app_config(app)
+        workers = get_app_workers(app)
+    
         if not config:
-            echo("Error: Invalid app.json for app '{}'.".format(app), fg="red")
+            echo("ERROR: Invalid app.json for app '%s'." % app, fg="red")
+            exit(1)
+        elif not workers:
+            echo("ERROR: app.json missing the 'gokku.run' processes or it is empty")
+            exit(1)
         else:
-            if not exists(log_path):
-                makedirs(log_path)
+            # ensure path exist
+            for p in ensure_paths:
+                if not exists(p):
+                    makedirs(p)            
 
             runtime = get_app_runtime(app)
+            env2 = get_app_env(app)
+
             if not runtime:
                 echo("-----> Could not detect runtime!", fg="red")
             else:
                 echo("-----> [%s] app detected." % runtime.upper(), fg="green")
 
-                if "web" in workers or "wsgi" in workers or 'static' in workers:
+                # Sanity check
+                if "web" in workers:
+                    # domain name
                     if "NGINX_SERVER_NAME" not in env2:
-                        echo("ERROR: Missing 'SERVER_NAME' or 'NGINX_SERVER_NAME' when there is a 'web' or 'wsgi' or 'static' application", fg="red")
+                        echo("ERROR: Missing 'DOMAIN_NAME' when there is a 'web' application", fg="red")
                         exit(1)
-
+                    if runtime == "static":
+                        if not workers["web"].startswith("/"):
+                            echo("ERROR: For static site the webroot must start with a '/' (slash), instead '%s' provided" % workers["web"], fg="red")
+                            exit(1)                            
+                    
                 # python
                 if runtime == "python":
                     deploy_python(app, deltas)
                 # node
                 elif runtime == "node":
-                    deploy_node(app, deltas)                    
-                # go
-                elif runtime == "go":
-                    deploy_go(app, deltas)                    
-                # static, php
-                elif runtime in ["static"] :
-                    deploy_static_html(app, deltas)
+                    deploy_node(app, deltas)
+                # static html/php, shell
+                elif runtime in ["static", "shell"]:
+                    deploy_static_shell(app, deltas)
 
                 # Spawn app
                 run_app_scripts(app, "predeploy")
@@ -471,78 +474,6 @@ def do_deploy(app, deltas={}, newrev=None):
     else:
         echo("Error: app '{}' not found.".format(app), fg='red')
 
-
-def deploy_go(app, deltas={}):
-    """Deploy a Go application"""
-
-    go_path = join(ENV_ROOT, app)
-    deps = join(APP_ROOT, app, 'Godeps')
-
-    first_time = False
-    if not exists(go_path):
-        echo("-----> Creating GOPATH for '{}'".format(app), fg='green')
-        makedirs(go_path)
-        # copy across a pre-built GOPATH to save provisioning time 
-        call('cp -a $HOME/gopath {}'.format(app), cwd=ENV_ROOT, shell=True)
-        first_time = True
-
-    if exists(deps):
-        if first_time or getmtime(deps) > getmtime(go_path):
-            echo("-----> Running godep for '{}'".format(app), fg='green')
-            env = {
-                'GOPATH': '$HOME/gopath',
-                'GOROOT': '$HOME/go',
-                'PATH': '$PATH:$HOME/go/bin',
-                'GO15VENDOREXPERIMENT': '1'
-            }
-            call('godep update ...', cwd=join(APP_ROOT, app), env=env, shell=True)
-
-
-def deploy_nodeA(app, deltas={}):
-    """Deploy a Node  application"""
-
-    virtualenv_path = join(ENV_ROOT, app)
-    node_path = join(ENV_ROOT, app, "node_modules")
-    node_path_tmp = join(APP_ROOT, app, "node_modules")
-    env_file = join(APP_ROOT, app, 'ENV')
-    deps = join(APP_ROOT, app, 'package.json')
-
-    first_time = False
-    if not exists(node_path):
-        echo("-----> Creating node_modules for '{}'".format(app), fg='green')
-        makedirs(node_path)
-        first_time = True
-
-    env = {
-        'VIRTUAL_ENV': virtualenv_path,
-        'NODE_PATH': node_path,
-        'NPM_CONFIG_PREFIX': abspath(join(node_path, "..")),
-        "PATH": ':'.join([join(virtualenv_path, "bin"), join(node_path, ".bin"),environ['PATH']])
-    }
-
-    env2 = get_app_env(app)
-    version = env2.get("NODE_VERSION")
-
-    if version:
-        node_binary = join(virtualenv_path, "bin", "node")
-        installed = check_output("{} -v".format(node_binary), cwd=join(APP_ROOT, app), env=env, shell=True).decode("utf8").rstrip("\n") if exists(node_binary) else ""
-
-        if not installed.endswith(version):
-            started = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
-            if installed and len(started):
-                echo("Warning: Can't update node with app running. Stop the app & retry.", fg='yellow')
-            else:
-                echo("-----> Installing node version '%s' using nodeenv" % version , fg='green')
-                call("nodeenv --prebuilt --node=%s --clean-src --force %s" % (version, virtualenv_path), cwd=virtualenv_path, env=env, shell=True)
-        else:
-            echo("-----> Node is installed at {}.".format(version))
-
-    if exists(deps):
-        if first_time or getmtime(deps) > getmtime(node_path):
-            echo("-----> Running npm for '{}'".format(app), fg='green')
-            symlink(node_path, node_path_tmp)
-            call('npm install', cwd=join(APP_ROOT, app), env=env, shell=True)
-            unlink(node_path_tmp)
 
 def deploy_node(app, deltas={}):
     """Deploy a Node  application"""
@@ -563,24 +494,26 @@ def deploy_node(app, deltas={}):
         'VIRTUAL_ENV': virtualenv_path,
         'NODE_PATH': node_path,
         'NPM_CONFIG_PREFIX': abspath(join(node_path, "..")),
-        "PATH": ':'.join([join(virtualenv_path, "bin"), join(node_path, ".bin"),environ['PATH']])
+        "PATH": ':'.join([join(virtualenv_path, "bin"), join(node_path, ".bin"), environ['PATH']])
     }
     if exists(env_file):
         env.update(parse_settings(env_file, env))
 
-    version = env.get("NODE_VERSION")
+    version = env.get("RUNTIME_VERSION")
 
     if version:
         node_binary = join(virtualenv_path, "bin", "node")
-        installed = check_output("{} -v".format(node_binary), cwd=join(APP_ROOT, app), env=env, shell=True).decode("utf8").rstrip("\n") if exists(node_binary) else ""
+        installed = check_output("{} -v".format(node_binary), cwd=join(APP_ROOT, app), env=env,
+                                 shell=True).decode("utf8").rstrip("\n") if exists(node_binary) else ""
 
         if not installed.endswith(version):
             started = glob(join(UWSGI_ENABLED, '{}*.ini'.format(app)))
             if installed and len(started):
                 echo("Warning: Can't update node with app running. Stop the app & retry.", fg='yellow')
             else:
-                echo("-----> Installing node version '{NODE_VERSION:s}' using nodeenv".format(**env), fg='green')
-                call("nodeenv --prebuilt --node={NODE_VERSION:s} --clean-src --force {VIRTUAL_ENV:s}".format(**env), cwd=virtualenv_path, env=env, shell=True)
+                echo("-----> Installing node version '{RUNTIME_VERSION:s}' using nodeenv".format(**env), fg='green')
+                call("nodeenv --prebuilt --node={RUNTIME_VERSION:s} --clean-src --force {VIRTUAL_ENV:s}".format(
+                    **env), cwd=virtualenv_path, env=env, shell=True)
         else:
             echo("-----> Node is installed at {}.".format(version))
 
@@ -591,14 +524,15 @@ def deploy_node(app, deltas={}):
             call('npm install', cwd=join(APP_ROOT, app), env=env, shell=True)
             unlink(node_path_tmp)
 
+
 def deploy_python(app, deltas={}):
     """Deploy a Python application"""
-    
+
     virtualenv_path = join(ENV_ROOT, app)
     requirements = join(APP_ROOT, app, 'requirements.txt')
-    activation_script = join(virtualenv_path,'bin','activate_this.py')
+    activation_script = join(virtualenv_path, 'bin', 'activate_this.py')
     env = get_app_env(app)
-    version = int(env.get("PYTHON_VERSION", "3"))
+    version = int(env.get("RUNTIME_VERSION", "3"))
 
     first_time = False
     if not exists(activation_script):
@@ -615,20 +549,19 @@ def deploy_python(app, deltas={}):
         call('pip install -r {} --upgrade'.format(requirements), cwd=virtualenv_path, shell=True)
 
 
-def deploy_static_html(app, deltas={}):
-    env_path = join(ENV_ROOT, app)
-    if not exists(env_path):
-        makedirs(env_path)
+def deploy_static_shell(app, deltas={}):
+    pass
 
 
 def spawn_app(app, deltas={}):
     """Create all workers for an app"""
-    
+
     app_path = join(APP_ROOT, app)
-    workers = get_app_workers(app)
     runtime = get_app_runtime(app)
-    ordinals = defaultdict(lambda:1)
-    worker_count = {k:1 for k in workers.keys()}
+    workers = get_app_workers(app)
+
+    ordinals = defaultdict(lambda: 1)
+    worker_count = {k: 1 for k in workers.keys()}
 
     virtualenv_path = join(ENV_ROOT, app)
     live = join(ENV_ROOT, app, 'LIVE_ENV')
@@ -640,7 +573,7 @@ def spawn_app(app, deltas={}):
         'LOG_ROOT': LOG_ROOT,
         'HOME': environ['HOME'],
         'USER': environ.get("USER"),
-        'PATH': ':'.join([join(virtualenv_path,'bin'),environ['PATH']]),
+        'PATH': ':'.join([join(virtualenv_path, 'bin'), environ['PATH']]),
         'PWD': app_path,
         'VIRTUAL_ENV': virtualenv_path,
     }
@@ -655,23 +588,24 @@ def spawn_app(app, deltas={}):
     node_path = join(virtualenv_path, "node_modules")
     if exists(node_path):
         env["NODE_PATH"] = node_path
-        env["PATH"] = ':'.join([join(node_path, ".bin"),env['PATH']])
+        env["PATH"] = ':'.join([join(node_path, ".bin"), env['PATH']])
 
     # Load environment variables shipped with repo (if any)
     env.update(get_app_env(app))
 
-    if 'web' in workers or 'wsgi' in workers or 'static' in workers:
+
+    if 'web' in workers:
         # Pick a port if none defined
         if 'PORT' not in env:
             env['PORT'] = str(get_free_port())
-            echo("-----> picking free port {PORT}".format(**env))
+            echo("-----> picking free port %s" % env["PORT"])
 
-        # Safe defaults for addressing     
+        # Safe defaults for addressing
         for k, v in safe_defaults.items():
             if k not in env:
                 echo("-----> nginx {k:s} set to {v}".format(**locals()))
                 env[k] = v
-                
+
         # Set up nginx if we have NGINX_SERVER_NAME set
         if 'NGINX_SERVER_NAME' in env:
             nginx = command_output("nginx -V")
@@ -680,20 +614,20 @@ def spawn_app(app, deltas={}):
                 nginx_ssl += " http2"
             elif "--with-http_spdy_module" in nginx and "nginx/1.6.2" not in nginx:
                 nginx_ssl += " spdy"
-            nginx_conf = join(NGINX_ROOT,"%s.conf" % app)
-        
-            env.update({ 
+            nginx_conf = join(NGINX_ROOT, "%s.conf" % app)
+
+            env.update({
                 'NGINX_SSL': nginx_ssl,
                 'NGINX_ROOT': NGINX_ROOT,
                 'ACME_WWW': ACME_WWW,
             })
-            
+
             env['INTERNAL_NGINX_UWSGI_SETTINGS'] = 'proxy_pass http://{BIND_ADDRESS:s}:{PORT:s};'.format(**env)
-            env['NGINX_SOCKET'] = "{BIND_ADDRESS:s}:{PORT:s}".format(**env) 
+            env['NGINX_SOCKET'] = "{BIND_ADDRESS:s}:{PORT:s}".format(**env)
             echo("-----> nginx will look for app '{}' on {}".format(app, env['NGINX_SOCKET']))
 
-            domain = env['NGINX_SERVER_NAME'].split()[0]       
-            key, crt = [join(NGINX_ROOT, "{}.{}".format(app,x)) for x in ['key','crt']]
+            domain = env['NGINX_SERVER_NAME'].split()[0]
+            key, crt = [join(NGINX_ROOT, "{}.{}".format(app, x)) for x in ['key', 'crt']]
             if exists(join(ACME_ROOT, "acme.sh")):
                 acme = ACME_ROOT
                 www = ACME_WWW
@@ -707,7 +641,8 @@ def spawn_app(app, deltas={}):
                 if not exists(key) or not exists(join(ACME_ROOT, domain, domain + ".key")):
                     echo("-----> getting letsencrypt certificate")
                     call('{acme:s}/acme.sh --issue -d {domain:s} -w {www:s}'.format(**locals()), shell=True)
-                    call('{acme:s}/acme.sh --install-cert -d {domain:s} --key-file {key:s} --fullchain-file {crt:s}'.format(**locals()), shell=True)
+                    call(
+                        '{acme:s}/acme.sh --install-cert -d {domain:s} --key-file {key:s} --fullchain-file {crt:s}'.format(**locals()), shell=True)
                     if exists(join(ACME_ROOT, domain)) and not exists(join(ACME_WWW, app)):
                         symlink(join(ACME_ROOT, domain), join(ACME_WWW, app))
                 else:
@@ -716,8 +651,9 @@ def spawn_app(app, deltas={}):
             # fall back to creating self-signed certificate if acme failed
             if not exists(key) or stat(crt).st_size == 0:
                 echo("-----> generating self-signed certificate")
-                call('openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=US/ST=NY/L=New York/O=Gokku/OU=Self-Signed/CN={domain:s}" -keyout {key:s} -out {crt:s}'.format(**locals()), shell=True)
-            
+                call('openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=US/ST=NY/L=New York/O=Gokku/OU=Self-Signed/CN={domain:s}" -keyout {key:s} -out {crt:s}'.format(
+                    **locals()), shell=True)
+
             # restrict access to server from CloudFlare IP addresses
             acl = []
             if env.get('NGINX_CLOUDFLARE_ACL', 'false').lower() == 'true':
@@ -733,7 +669,7 @@ def spawn_app(app, deltas={}):
                             remote_ip = environ['SSH_CLIENT'].split()[0]
                             echo("-----> Adding your IP ({}) to nginx ACL".format(remote_ip))
                             acl.append("allow {};".format(remote_ip))
-                        acl.extend(["allow 127.0.0.1;","deny all;"])
+                        acl.extend(["allow 127.0.0.1;", "deny all;"])
                 except:
                     cf = defaultdict()
                     echo("-----> Could not retrieve CloudFlare IP ranges: {}".format(format_exc()), fg="red")
@@ -744,11 +680,10 @@ def spawn_app(app, deltas={}):
             env['INTERNAL_NGINX_STATIC_CLAUSES'] = ''
 
             # static requires just the path. It will set the url as web root
-            if 'static' in workers and runtime == 'static':
-                static_path = workers['static'].strip("/").rstrip("/")
+            if runtime == 'static':
+                static_path = workers['web'].strip("/").rstrip("/")
                 html_root = join(app_path, static_path)
-                env['INTERNAL_NGINX_STATIC_CLAUSES'] =  expandvars(INTERNAL_NGINX_STATIC_CLAUSES, locals())
-
+                env['INTERNAL_NGINX_STATIC_CLAUSES'] = expandvars(INTERNAL_NGINX_STATIC_CLAUSES, locals())
 
             # Get a mapping of [/url1:path1, /url2:path2, ...] ...
             static_paths = env.get('NGINX_STATIC_PATHS', [])
@@ -761,12 +696,15 @@ def spawn_app(app, deltas={}):
                         static_url, static_path = item.split(':', 2)
                         if static_path[0] != '/':
                             static_path = join(app_path, static_path)
-                        env['INTERNAL_NGINX_STATIC_MAPPINGS'] = env['INTERNAL_NGINX_STATIC_MAPPINGS'] + expandvars(INTERNAL_NGINX_STATIC_MAPPING, locals())
+                        env['INTERNAL_NGINX_STATIC_MAPPINGS'] = env['INTERNAL_NGINX_STATIC_MAPPINGS'] + \
+                            expandvars(INTERNAL_NGINX_STATIC_MAPPING, locals())
                 except Exception as e:
-                    echo("Error {} in static_paths spec: should be a list [/url1:path1, /url2:path2, ...], ignoring.".format(e), fg="red")
+                    echo(
+                        "Error {} in static_paths spec: should be a list [/url1:path1, /url2:path2, ...], ignoring.".format(e), fg="red")
                     env['INTERNAL_NGINX_STATIC_MAPPINGS'] = ''
 
-            env['INTERNAL_NGINX_CUSTOM_CLAUSES'] = expandvars(open(join(app_path, env["NGINX_INCLUDE_FILE"])).read(), env) if env.get("NGINX_INCLUDE_FILE") else ""
+            env['INTERNAL_NGINX_CUSTOM_CLAUSES'] = expandvars(
+                open(join(app_path, env["NGINX_INCLUDE_FILE"])).read(), env) if env.get("NGINX_INCLUDE_FILE") else ""
             env['INTERNAL_NGINX_PORTMAP'] = ""
             if 'web' in workers or 'wsgi' in workers:
                 env['INTERNAL_NGINX_PORTMAP'] = expandvars(NGINX_PORTMAP_FRAGMENT, env)
@@ -775,7 +713,8 @@ def spawn_app(app, deltas={}):
             echo("-----> nginx will map app '{}' to hostname '{}'".format(app, env['NGINX_SERVER_NAME']))
             if 'NGINX_HTTPS_ONLY' in env or 'HTTPS_ONLY' in env:
                 buffer = expandvars(NGINX_HTTPS_ONLY_TEMPLATE, env)
-                echo("-----> nginx will redirect all requests to hostname '{}' to HTTPS".format(env['NGINX_SERVER_NAME']))
+                echo(
+                    "-----> nginx will redirect all requests to hostname '{}' to HTTPS".format(env['NGINX_SERVER_NAME']))
             else:
                 buffer = expandvars(NGINX_TEMPLATE, env)
             with open(nginx_conf, "w") as h:
@@ -792,12 +731,12 @@ def spawn_app(app, deltas={}):
 
     # Configured worker count
     if exists(scaling):
-        worker_count.update({k: int(v) for k,v in parse_procfile(scaling).items() if k in workers})
-    
+        worker_count.update({k: int(v) for k, v in parse_procfile(scaling).items() if k in workers})
+
     to_create = {}
-    to_destroy = {}    
+    to_destroy = {}
     for k, v in worker_count.items():
-        to_create[k] = range(1,worker_count[k] + 1)
+        to_create[k] = range(1, worker_count[k] + 1)
         if k in deltas and deltas[k]:
             to_create[k] = range(1, worker_count[k] + deltas[k] + 1)
             if deltas[k] < 0:
@@ -812,12 +751,11 @@ def spawn_app(app, deltas={}):
     # Save current settings
     write_config(live, env)
     write_config(scaling, worker_count, ':')
-    
+
     # auto restart
     if env.get("AUTO_RESTART", False) is True:
         echo("-----> auto-restart triggered", fg="green")
         cleanup_uwsgi_enabled_ini(app)
-            
 
     # Create new workers
     for k, v in to_create.items():
@@ -826,7 +764,7 @@ def spawn_app(app, deltas={}):
             if not exists(enabled):
                 echo("-----> spawning '{app:s}:{k:s}.{w:d}'".format(**locals()), fg='green')
                 spawn_worker(app, k, workers[k], env, w)
-        
+
     # Remove unnecessary workers (leave logfiles)
     for k, v in to_destroy.items():
         for w in v:
@@ -841,7 +779,19 @@ def spawn_app(app, deltas={}):
 def spawn_worker(app, kind, command, env, ordinal=1):
     """Set up and deploy a single worker of a given kind"""
 
-    env['PROC_TYPE'] = kind
+    app_kind = kind
+    runtime = get_app_runtime(app)
+    workers = get_app_workers(app)
+    envx = get_app_env(app)
+
+    if app_kind == "web":
+        app_kind = runtime
+        if runtime == "python":
+            app_kind = "wsgi" if envx.get("WSGI", True) is True else "shell"
+        elif runtime == "node":
+            app_kind = "shell"
+
+    env['PROC_TYPE'] = app_kind
     env_path = join(ENV_ROOT, app)
     available = join(UWSGI_AVAILABLE, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
     enabled = join(UWSGI_ENABLED, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
@@ -867,44 +817,48 @@ def spawn_worker(app, kind, command, env, ordinal=1):
         settings.append(('virtualenv', env_path))
 
     http = '{BIND_ADDRESS:s}:{PORT:s}'.format(**env)
-    
-    if kind == 'wsgi': 
-        # for Python only
-        python_version = int(env.get('PYTHON_VERSION','3'))
-        settings.extend([ ('module', command), ('threads', env.get('UWSGI_THREADS','4'))])
-        if python_version == 2:
-            settings.extend([('plugin','python')])
-            if 'UWSGI_GEVENT' in env:
-                settings.extend([('plugin','gevent_python'),('gevent',env['UWSGI_GEVENT'])])
-            elif 'UWSGI_ASYNCIO' in env:
-                settings.extend([('plugin','asyncio_python')])
-        elif python_version == 3:
-            settings.extend([('plugin','python3'),])
-            if 'UWSGI_ASYNCIO' in env:
-                settings.extend([('plugin','asyncio_python3'),])
 
-        
-        echo("-----> nginx will talk to uWSGI via %s" % http , fg='yellow')
+    # for Python only
+    if app_kind == 'wsgi':
+        python_version = int(env.get('RUNTIME_VERSION', '3'))
+        settings.extend([('module', command), ('threads', env.get('UWSGI_THREADS', '4'))])
+        if python_version == 2:
+            settings.extend([('plugin', 'python')])
+            if 'UWSGI_GEVENT' in env:
+                settings.extend([('plugin', 'gevent_python'), ('gevent', env['UWSGI_GEVENT'])])
+            elif 'UWSGI_ASYNCIO' in env:
+                settings.extend([('plugin', 'asyncio_python')])
+        elif python_version == 3:
+            settings.extend([('plugin', 'python3'), ])
+            if 'UWSGI_ASYNCIO' in env:
+                settings.extend([('plugin', 'asyncio_python3'), ])
+
+        echo("-----> nginx will talk to uWSGI via %s" % http, fg='yellow')
         settings.extend([('http', http), ('http-socket', http)])
 
-    elif kind == 'web':
-        echo("-----> nginx will talk to the 'web' process via %s" % http, fg='yellow')
+    # shell
+    elif app_kind == 'shell':
+        echo("-----> nginx will talk to the web process via %s" % http, fg='yellow')
         settings.append(('attach-daemon', command))
-    elif kind == 'static':
+
+    elif app_kind == 'static':
         echo("-----> nginx will serve static HTML/PHP files only".format(**env), fg='yellow')
+        
     else:
         settings.append(('attach-daemon', command))
-        
-    if kind in ['wsgi', 'web']:
-        settings.append(('log-format','%%(addr) - %%(user) [%%(ltime)] "%%(method) %%(uri) %%(proto)" %%(status) %%(size) "%%(referer)" "%%(uagent)" %%(msecs)ms'))
-        
+
+    if app_kind in ['wsgi', 'shell']:
+        settings.append(
+            ('log-format', '%%(addr) - %%(user) [%%(ltime)] "%%(method) %%(uri) %%(proto)" %%(status) %%(size) "%%(referer)" "%%(uagent)" %%(msecs)ms'))
+
     # remove unnecessary variables from the env in nginx.ini
     for k in ['NGINX_ACL']:
         if k in env:
             del env[k]
 
     # insert user defined uwsgi settings if set
-    settings += parse_settings(join(APP_ROOT, app, env.get("UWSGI_INCLUDE_FILE"))).items() if env.get("UWSGI_INCLUDE_FILE") else []
+    settings += parse_settings(join(APP_ROOT, app, env.get("UWSGI_INCLUDE_FILE"))
+                               ).items() if env.get("UWSGI_INCLUDE_FILE") else []
 
     for k, v in env.items():
         settings.append(('env', '{k:s}={v}'.format(**locals())))
@@ -924,14 +878,16 @@ def cleanup_uwsgi_enabled_ini(app):
             remove(c)
         return True
 
+
 def remove_nginx_conf(app):
-    nginx_conf = join(NGINX_ROOT,"%s.conf" % app)
+    nginx_conf = join(NGINX_ROOT, "%s.conf" % app)
     if exists(nginx_conf):
         remove(nginx_conf)
 
+
 def multi_tail(app, filenames, catch_up=20):
     """Tails multiple log files"""
-    
+
     # Seek helper
     def peek(handle):
         where = handle.tell()
@@ -944,17 +900,17 @@ def multi_tail(app, filenames, catch_up=20):
     inodes = {}
     files = {}
     prefixes = {}
-    
+
     # Set up current state for each log file
     for f in filenames:
         prefixes[f] = splitext(basename(f))[0]
         files[f] = open(f)
         inodes[f] = stat(f).st_ino
         files[f].seek(0, 2)
-        
+
     longest = max(map(len, prefixes.values()))
-    
-    # Grab a little history (if any) 
+
+    # Grab a little history (if any)
     for f in filenames:
         for line in deque(open(f), catch_up):
             yield "{} | {}".format(prefixes[f].ljust(longest), line)
@@ -969,7 +925,7 @@ def multi_tail(app, filenames, catch_up=20):
             else:
                 updated = True
                 yield "{} | {}".format(prefixes[f].ljust(longest), line)
-                
+
         if not updated:
             sleep(1)
             # Check if logs rotated
@@ -982,8 +938,8 @@ def multi_tail(app, filenames, catch_up=20):
                     filenames.remove(f)
 
 
-# === CLI commands ===    
-    
+# === CLI commands ===
+
 @click.group()
 def cli():
     """ Gokku - A very small PaaS to do git push deployments. 
@@ -997,13 +953,13 @@ def cli():
 @cli.command("apps")
 def list_apps():
     """List all apps: [apps]"""
-    enabled = { a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a }
+    enabled = {a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a}
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             runtime = get_app_runtime(app)
             nginx_file = join(NGINX_ROOT, "%s.conf" % app)
             running = False
-            if runtime  == "static":
+            if runtime == "static":
                 if exists(nginx_file):
                     running = True
             else:
@@ -1015,7 +971,7 @@ def list_apps():
 @click.argument('app')
 def cmd_config(app):
     """Show config: [config <app>]"""
-    
+
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'ENV')
@@ -1052,10 +1008,10 @@ def cmd_config_set(app, settings):
 @click.argument('settings', nargs=-1)
 def cmd_config_unset(app, settings):
     """Unset config: [unset <app> {KEY}] """
-    
+
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    
+
     config_file = join(ENV_ROOT, app, 'ENV')
     env = parse_settings(config_file)
     for s in settings:
@@ -1070,7 +1026,7 @@ def cmd_config_unset(app, settings):
 @click.argument('app')
 def cmd_config_live(app):
     """live configuration: [config <app>] """
-    
+
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     live_config = join(ENV_ROOT, app, 'LIVE_ENV')
@@ -1084,7 +1040,7 @@ def cmd_config_live(app):
 @click.argument('app')
 def cmd_deploy(app):
     """Deploy app: [deploy <app>]"""
-    
+
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     do_deploy(app)
@@ -1103,7 +1059,7 @@ def cmd_destroy(app):
         exit(1)
     if not click.confirm("Are you really sure?"):
         exit(1)
-    
+
     # on destroy
     run_app_scripts(app, "destroy")
 
@@ -1118,8 +1074,8 @@ def cmd_destroy(app):
             for f in g:
                 echo("Removing file '{}'".format(f), fg='yellow')
                 remove(f)
-                
-    nginx_files = [join(NGINX_ROOT, "{}.{}".format(app,x)) for x in ['conf','sock','key','crt']]
+
+    nginx_files = [join(NGINX_ROOT, "{}.{}".format(app, x)) for x in ['conf', 'sock', 'key', 'crt']]
     for f in nginx_files:
         if exists(f):
             echo("Removing file '{}'".format(f), fg='yellow')
@@ -1133,11 +1089,12 @@ def cmd_destroy(app):
         echo("Removing file '{}'".format(acme_link), fg='yellow')
         unlink(acme_link)
 
+
 @cli.command("logs")
 @click.argument('app')
 def cmd_logs(app):
     """Read tail logs: [logs <app>]"""
-    
+
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     logfiles = glob(join(LOG_ROOT, app, '*.log'))
@@ -1147,11 +1104,12 @@ def cmd_logs(app):
     else:
         echo("No logs found for app '{}'.".format(app), fg='yellow')
 
+
 @cli.command("ps")
 @click.argument('app')
 def cmd_ps(app):
     """Show process count: [ps <app>]"""
-    
+
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SCALING')
@@ -1160,21 +1118,22 @@ def cmd_ps(app):
     else:
         echo("Error: no workers found for app '{}'.".format(app), fg='red')
 
+
 @cli.command("scale")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_ps_scale(app, settings):
     """Scale processes: [<app> [<proc>=<count>, ...]]"""
-    
+
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SCALING')
-    worker_count = {k:int(v) for k, v in parse_procfile(config_file).items()}
+    worker_count = {k: int(v) for k, v in parse_procfile(config_file).items()}
     deltas = {}
     for s in settings:
         try:
             k, v = map(lambda x: x.strip(), s.split("=", 1))
-            c = int(v) # check for integer value
+            c = int(v)  # check for integer value
             if c < 0:
                 echo("Error: cannot scale type '{}' below 0".format(k), fg='red')
                 return
@@ -1187,16 +1146,18 @@ def cmd_ps_scale(app, settings):
             return
     do_deploy(app, deltas)
 
+
 @cli.command("restart")
 @click.argument('app')
 def cmd_restart(app):
     """Restart app: [restart <app>]"""
-    
+
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     cleanup_uwsgi_enabled_ini(app)
     echo("Restarting app '{}'...".format(app), fg='yellow')
     spawn_app(app)
+
 
 @cli.command("stop")
 @click.argument('app')
@@ -1209,19 +1170,20 @@ def cmd_stop(app):
     remove_nginx_conf(app)
     cleanup_uwsgi_enabled_ini(app)
     echo("App '{}' stopped".format(app), fg='yellow')
-        
+
+
 @cli.command("init")
 def cmd_init():
     """Initialize environment"""
 
-    echo("Running in Python {}".format(".".join(map(str,version_info))))
+    echo("Running in Python {}".format(".".join(map(str, version_info))))
 
     # Create required paths
     for p in [APP_ROOT, GIT_ROOT, ACME_WWW, ENV_ROOT, UWSGI_ROOT, UWSGI_AVAILABLE, UWSGI_ENABLED, LOG_ROOT, NGINX_ROOT]:
         if not exists(p):
             echo("Creating '{}'.".format(p), fg='green')
             makedirs(p)
-    
+
     # Set up the uWSGI emperor config
     settings = [
         ('chdir',           UWSGI_ROOT),
@@ -1235,7 +1197,7 @@ def cmd_init():
         ('enable-threads',  'true'),
         ('threads',         '{}'.format(cpu_count() * 2)),
     ]
-    with open(join(UWSGI_ROOT,'uwsgi.ini'), 'w') as h:
+    with open(join(UWSGI_ROOT, 'uwsgi.ini'), 'w') as h:
         h.write('[uwsgi]\n')
         for k, v in settings:
             h.write("{k:s} = {v}\n".format(**locals()))
@@ -1247,6 +1209,7 @@ def cmd_init():
 
     # ACME
     install_acme_sh()
+
 
 @cli.command("set-ssh")
 @click.argument('public_key_file')
@@ -1279,6 +1242,7 @@ def cmd_version():
     """ Get Version """
     echo("%s v.%s" % (NAME, VERSION), fg="green")
 
+
 @cli.command("upgrade")
 def cmd_upgrade():
     """ Upgrade to the latest version of Gokku """
@@ -1290,15 +1254,21 @@ def cmd_upgrade():
     chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
     echo("Upgrade complete!", fg="green")
 
+
+@cli.command("reload-nginx")
+def cmd_nginx_reload():
+    pass
+
+
 # --- Internal commands ---
 
 def cmd_git_hook(app):
     """INTERNAL: Post-receive git hook"""
-    
+
     app = sanitize_app_name(app)
     repo_path = join(GIT_ROOT, app)
     app_path = join(APP_ROOT, app)
-    
+
     for line in stdin:
         oldrev, newrev, refname = line.strip().split(" ")
         if not exists(app_path):
@@ -1330,7 +1300,7 @@ cat | GOKKU_ROOT="{GOKKU_ROOT:s}" {GOKKU_SCRIPT:s} git-hook {app:s}""".format(**
         chmod(hook_path, stat(hook_path).st_mode | S_IXUSR)
     call('git-shell -c "{}" '.format(argv[1] + " '{}'".format(app)), cwd=GIT_ROOT, shell=True)
 
-    
+
 def cmd_upload_pack(app):
     """INTERNAL: Handle git upload pack for an app"""
     app = sanitize_app_name(app)

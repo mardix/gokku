@@ -7,19 +7,21 @@ A very small PaaS to do git push deployments to your own servers. Supports Pytho
 - Deploy to own server
 - SSL with LetsEncrypt
 - Instant deploy
+- Native app languages: Python, Node, PHP, HTML/Static site
 
 ### Requirements
-
-- SSH to server
+- Fresh server
+- SSH to server with root access
 - Ubuntu 18.04
 
 ### Languages
 
 - [x] Python 
-- [ ] Nodejs
+- [x] Nodejs
 - [x] Static HTML
 - [x] PHP
-- [ ] Go
+- [x] Any shell script
+
 
 ### Commands
 
@@ -94,7 +96,7 @@ If the root directory contains `requirements.txt` it will use Python, `package.j
 {
   "gokku": {
     "env": {
-      "server_name": "mysite.com"
+      "domain_name": "mysite.com"
     },
     "run": {
       "web": "app:app"
@@ -133,14 +135,16 @@ Once you are ready to deploy, push your code to master
 
     // env: environment variables 
     "env": {
-      // server_name (string): the server name without http
-      "server_name": "",
-      // runtime: python|node|go|static
+      // domain_name (string): the server name without http
+      "domain_name": "",
+      // runtime: python|node|static|shell
+      // python for wsgi application (default python)
+      // node: for node application, where the command should be ie: 'node inde.js 2>&1 | cat'
+      // static: for HTML/Static page and PHP
+      // shell: for any script that can be executed via the shell script, ie: command 2>&1 | cat
       "runtime": "python",
-      // python_version: if runtime is python, specify python version: 3|2
-      "python_version": "3",
-      // node_version: if runtime is node, specify node version
-      "node_version": "",
+      // runtime_version: python : 3(default)|2, node: node version
+      "runtime_version": "3",
       // auto_restart (bool): to force server restarts when deploying
       "auto_restart": false,
       // static_paths (array): specify list of static path to expose, [/url:path, ...]
@@ -154,7 +158,6 @@ Once you are ready to deploy, push your code to master
 
       // nginx (object): nginx specific config. can be omitted
       "nginx": {
-        "https_only": "",
         "cloudflare_acl": false,
         "include_file": ""
       },  
@@ -184,7 +187,7 @@ Once you are ready to deploy, push your code to master
     "run": {
       // web (string): it’s the only process type that can receive external HTTP traffic
       // -> app:app (for python using wsgi)
-      // -> node server.js (For other web app which requires a server command)
+      // -> node server.js 2>&1 cat (For other web app which requires a server command)
       // -> /web-root-dir-name (for static html+php)
       "web": "",
 
@@ -209,10 +212,9 @@ Copy and edit the config below in your `app.json` file.
   "description": "",
   "gokku": {
     "env": {
-      "server_name": "",
+      "domain_name": "",
       "runtime": "static",
-      "python_version": "3",
-      "node_version": "",
+      "runtime_version": "3",
       "auto_restart": true,
       "static_paths": [],
       "https_only": true,

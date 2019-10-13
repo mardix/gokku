@@ -991,19 +991,26 @@ def cli():
 def list_apps():
     """List all apps: [apps]"""
     enabled = {a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a}
-    data = [["App", "Runtime", "Status"]]
+    data = [["App", "Runtime", "Status", "Web", "Workers"]]
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             runtime = get_app_runtime(app)
+            workers = get_app_workers(app)
             nginx_file = join(NGINX_ROOT, "%s.conf" % app)
             running = False
+            workers_len = len(workers.keys()) if workers else 0 
+            web_len = 0 
+            if "web" in workers:
+                web_len = 1
+                workers_len = workers_len - 1
             if runtime == "static":
                 if exists(nginx_file):
                     running = True
             else:
                 running = app in enabled
+            
             status = "running" if running else "not running"
-            data.append([app, runtime, status])
+            data.append([app, runtime, status, web_len, workers_len])
     print_title()
     print_table(data)
 

@@ -254,6 +254,7 @@ def print_table(table, with_header=True):
     print(line)
 
 def print_app_title(app):
+    print("-" * 80)
     print("App: %s" % app)
 
 def sanitize_app_name(app):
@@ -1144,11 +1145,13 @@ def cmd_ps(app):
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SCALING')
+
     print_app_title(app)
     if exists(config_file):
         with open(config_file) as f:
             data = [[l.split(":")[0], l.split(":")[1]] for l in f.read().strip().split("\n")]
-            print_table(data.insert(0, ["Process", "Size"]))    
+            data.insert(0, ["Process", "Size"])
+            print_table(data)    
     else:
         echo("Error: no workers found for app '{}'.".format(app), fg='red')
 

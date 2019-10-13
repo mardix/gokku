@@ -848,7 +848,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
         ('logto',               '{log_file:s}.{ordinal:d}.log'.format(**locals())),
         ('log-backupname',      '{log_file:s}.{ordinal:d}.log.old'.format(**locals())),
         ('plugin', 'stats_pusher_file'),
-        ('stats-push',          stats_file),
+        ('stats-push',          "file:%s" % stats_file),
         ('enable-metrics',      'true'),
     ]
 

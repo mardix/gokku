@@ -986,6 +986,7 @@ def cli():
 def list_apps():
     """List all apps: [apps]"""
     enabled = {a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a}
+    data = [["App", "Runtime", "Status"]]
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             runtime = get_app_runtime(app)
@@ -996,8 +997,9 @@ def list_apps():
                     running = True
             else:
                 running = app in enabled
-            echo("[%s] [%s]: %s" % ("running" if running else "not running", runtime, app), fg="green" if running else "red")
-
+            status = "running" if running else "not running"
+            data.append([app, runtime, status])
+    print_table(data)
 
 @cli.command("config")
 @click.argument('app')

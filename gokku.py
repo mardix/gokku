@@ -847,6 +847,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
         ('log-maxsize',         env.get('UWSGI_LOG_MAXSIZE', UWSGI_LOG_MAXSIZE)),
         ('logto',               '{log_file:s}.{ordinal:d}.log'.format(**locals())),
         ('log-backupname',      '{log_file:s}.{ordinal:d}.log.old'.format(**locals())),
+        ('plugin', 'stats_pusher_file'),
         ('stats-push',          stats_file),
     ]
 

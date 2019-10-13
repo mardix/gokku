@@ -44,7 +44,6 @@ NAME = "Gokku"
 VERSION = "0.0.27"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
-
 GOKKU_SCRIPT = realpath(__file__)
 GOKKU_ROOT = environ.get('GOKKU_ROOT', environ['HOME'])
 GOKKU_BIN = join(environ['HOME'], 'bin')
@@ -849,6 +848,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
         ('logto',               '{log_file:s}.{ordinal:d}.log'.format(**locals())),
         ('log-backupname',      '{log_file:s}.{ordinal:d}.log.old'.format(**locals())),
         ('stats',               stats_path),
+        ('memory-report',       'true'),
     ]
 
     # only add virtualenv to uwsgi if it's a real virtualenv

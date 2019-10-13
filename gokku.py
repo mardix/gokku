@@ -1153,7 +1153,7 @@ def cmd_ps(app):
             data.insert(0, ["Process", "Size"])
             print_table(data)    
     else:
-        echo("Error: no workers found for app '{}'.".format(app), fg='red')
+        echo("Error: no workers found for app '%s'." % app, fg='red')
 
 
 @cli.command("scale")

@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.25"
+VERSION = "0.0.26"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -261,9 +261,6 @@ def print_title(app=None, title=None):
     if title:
         print(title)
     print(" ")
-
-
-
 
 def sanitize_app_name(app):
     """Sanitize the app name and build matching path"""

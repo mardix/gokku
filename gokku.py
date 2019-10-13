@@ -224,6 +224,37 @@ INTERNAL_NGINX_STATIC_CLAUSES = """
 def any_in_list(l1, t2):
     return any((True for x in l1 if x in t2))
 
+def print_table(table, with_header=True):
+    """
+    To print data in table.
+    :param table: list of lists 
+    :param with_header: True if the first row is the header
+    table = [
+        ["ABC", "Man Utd", "Man City", "T Hotspur"],
+        ["Man Utd", 1, 0, 0],
+        ["Man City", 1, 1, 0],
+        ["T Hotspur", 0, 1, 2],
+    ]
+    print_table(table)
+    """
+    longest_cols = [
+        (max([len(str(row[i])) for row in table]) + 3)
+        for i in range(len(table[0]))
+        ]
+    cols_size_sum = sum(longest_cols)
+    row_format = "".join(["{:<" + str(longest_col) + "}" for longest_col in longest_cols])
+    line = "-" * cols_size_sum
+    if with_header:
+        headers = table.pop(0)
+        print(line)
+        print(row_format.format(*headers))
+        print(line)
+    for row in table:
+        print(row_format.format(*row))
+    print(line)
+
+def print_app_title(app):
+    print("App: %s" % app)
 
 def sanitize_app_name(app):
     """Sanitize the app name and build matching path"""
@@ -1049,7 +1080,7 @@ def cmd_deploy(app):
 @cli.command("destroy")
 @click.argument('app')
 def cmd_destroy(app):
-    """Destroy app: [destroy <app>]"""
+    """Delete app: [destroy <app>]"""
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
 
@@ -1113,8 +1144,11 @@ def cmd_ps(app):
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SCALING')
+    print_app_title(app)
     if exists(config_file):
-        echo(open(config_file).read().strip(), fg='white')
+        with open(config_file) as f:
+            data = [[l.split(":")[0], l.split(":")[1]] for l in f.read().strip().split("\n")]
+            print_table(data.inser(0, ["Process", "Size"]))    
     else:
         echo("Error: no workers found for app '{}'.".format(app), fg='red')
 
@@ -1133,7 +1167,7 @@ def cmd_ps_scale(app, settings):
     for s in settings:
         try:
             k, v = map(lambda x: x.strip(), s.split("=", 1))
-            c = int(v)  # check for integer value
+            c = int(v)
             if c < 0:
                 echo("Error: cannot scale type '{}' below 0".format(k), fg='red')
                 return
@@ -1169,7 +1203,8 @@ def cmd_stop(app):
     echo("removed nginx config file", fg="yellow")
     remove_nginx_conf(app)
     cleanup_uwsgi_enabled_ini(app)
-    echo("App '{}' stopped".format(app), fg='yellow')
+    echo("App '%s' stopped" % app, fg='yellow')
+
 
 
 @cli.command("init")
@@ -1254,10 +1289,6 @@ def cmd_upgrade():
     chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
     echo("Upgrade complete!", fg="green")
 
-
-@cli.command("reload-nginx")
-def cmd_nginx_reload():
-    pass
 
 
 # --- Internal commands ---

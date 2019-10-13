@@ -1148,7 +1148,7 @@ def cmd_ps(app):
     if exists(config_file):
         with open(config_file) as f:
             data = [[l.split(":")[0], l.split(":")[1]] for l in f.read().strip().split("\n")]
-            print_table(data.inser(0, ["Process", "Size"]))    
+            print_table(data.insert(0, ["Process", "Size"]))    
     else:
         echo("Error: no workers found for app '{}'.".format(app), fg='red')
 

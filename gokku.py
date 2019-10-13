@@ -253,8 +253,20 @@ def print_table(table, with_header=True):
         print(row_format.format(*row))
     print(line)
 
+def print_title(app=None, title=None):
+    print("-" * 80)
+    print("Gokku v%s" % VERSION)
+    if app:
+        print("App: %s" % app)
+        print("---")
+    if title:
+        print(title)
+    print("-" * 80)
+
+
 def print_app_title(app):
     print("-" * 80)
+    print("Gokku v%s" % VERSION)
     print("App: %s" % app)
 
 def sanitize_app_name(app):
@@ -999,6 +1011,7 @@ def list_apps():
                 running = app in enabled
             status = "running" if running else "not running"
             data.append([app, runtime, status])
+    print_title()
     print_table(data)
 
 @cli.command("config")
@@ -1148,7 +1161,7 @@ def cmd_ps(app):
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SCALING')
 
-    print_app_title(app)
+    print_title(app=app,title="Process")
     if exists(config_file):
         with open(config_file) as f:
             data = [[l.split(":")[0], l.split(":")[1]] for l in f.read().strip().split("\n")]

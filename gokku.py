@@ -829,6 +829,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
 
     env['PROC_TYPE'] = app_kind
     env_path = join(ENV_ROOT, app)
+    stats_file = join(env_path, "stats.json")
     available = join(UWSGI_AVAILABLE, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
     enabled = join(UWSGI_ENABLED, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
     log_file = join(LOG_ROOT, app, kind)
@@ -846,8 +847,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
         ('log-maxsize',         env.get('UWSGI_LOG_MAXSIZE', UWSGI_LOG_MAXSIZE)),
         ('logto',               '{log_file:s}.{ordinal:d}.log'.format(**locals())),
         ('log-backupname',      '{log_file:s}.{ordinal:d}.log.old'.format(**locals())),
-        ('memory-report',       'true'),
-        ('metrics-dir', env_path)
+        ('stats-push',          stats_file),
     ]
 
     # only add virtualenv to uwsgi if it's a real virtualenv

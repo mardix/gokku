@@ -849,6 +849,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
         ('log-backupname',      '{log_file:s}.{ordinal:d}.log.old'.format(**locals())),
         ('plugin', 'stats_pusher_file'),
         ('stats-push',          stats_file),
+        ('enable-metrics',      'true'),
     ]
 
     # only add virtualenv to uwsgi if it's a real virtualenv

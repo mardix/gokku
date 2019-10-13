@@ -258,16 +258,12 @@ def print_title(app=None, title=None):
     print("Gokku v%s" % VERSION)
     if app:
         print("App: %s" % app)
-        print("---")
     if title:
         print(title)
-    print("-" * 80)
+    print(" ")
 
 
-def print_app_title(app):
-    print("-" * 80)
-    print("Gokku v%s" % VERSION)
-    print("App: %s" % app)
+
 
 def sanitize_app_name(app):
     """Sanitize the app name and build matching path"""

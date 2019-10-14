@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.28"
+VERSION = "0.0.29"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -852,7 +852,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
         ('logto',               '{log_file:s}.{ordinal:d}.log'.format(**locals())),
         ('log-backupname',      '{log_file:s}.{ordinal:d}.log.old'.format(**locals())),
         ('plugin', 'stats_pusher_file'),
-        ('stats-push',          "file:%s,app" % stats_file),
+        ('stats-push',          stats_file),
     ]
 
     http = '{BIND_ADDRESS:s}:{PORT:s}'.format(**env)

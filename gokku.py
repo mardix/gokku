@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.34"
+VERSION = "0.0.36"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -1038,7 +1038,7 @@ def cli():
 
 @cli.command("apps")
 def list_apps():
-    """List all apps: [apps]"""
+    """List all apps"""
     print_title(title="All apps")
     enabled = {a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a}
     data = [["App", "Runtime", "Running", "Web", "Workers", "AVG", "RSS", "VSZ", "TX"]]
@@ -1073,7 +1073,7 @@ def list_apps():
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_set(app, settings):
-    """Update settings: [env:set <app> [{KEY1}={VAL1}, ...]]"""
+    """Set env settings: [<app> [{KEY1}={VAL1}, ...]]"""
 
     echo("Update settings for %s" % app, fg="green")
     exit_if_not_exists(app)
@@ -1096,7 +1096,7 @@ def cmd_config_set(app, settings):
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_unset(app, settings):
-    """Delete settings: [env:del <app> {KEY}] """
+    """Delete env settings: [<app> {KEY}] """
 
     echo("Update settings for %s" % app, fg="green")
     exit_if_not_exists(app)
@@ -1114,7 +1114,7 @@ def cmd_config_unset(app, settings):
 @cli.command("env")
 @click.argument('app')
 def cmd_config_live(app):
-    """Show env settings: [env <app>] """
+    """Show env settings: [<app>] """
     print_title(app=app, title="Env Settings")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1122,29 +1122,32 @@ def cmd_config_live(app):
     settings_file = join(ENV_ROOT, app, 'SETTINGS')
     
     if exists(live_config):
+        echo("")
+        echo("---------- Live ENV settings ----------")        
         echo(open(live_config).read().strip(), fg='white') 
     else:
         echo("Warning: app '{}' not deployed, no config found.".format(app), fg='yellow')
 
     if exists(settings_file):
         echo("")
+        echo("")
         echo("---------- Custom ENV settings ----------")
         echo(open(settings_file).read().strip(), fg='white')
 
-@cli.command("deploy")
+@cli.command("app:deploy")
 @click.argument('app')
 def cmd_deploy(app):
-    """Deploy app: [deploy <app>]"""
+    """Deploy app: [<app>]"""
     echo("Deploy app", fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     do_deploy(app)
 
 
-@cli.command("destroy")
+@cli.command("app:destroy")
 @click.argument('app')
 def cmd_destroy(app):
-    """Delete app: [destroy <app>]"""
+    """Delete app: [<app>]"""
     echo("**** WARNING ****", fg="red")
     echo("**** YOU ARE ABOUT TO DESTROY AN APP ****", fg="red")
 
@@ -1204,7 +1207,7 @@ def cmd_logs(app):
 @cli.command("ps")
 @click.argument('app')
 def cmd_ps(app):
-    """Show process count: [ps <app>]"""
+    """Show process count: [<app>]"""
 
     print_title(app=app,title="Process")
     exit_if_not_exists(app)
@@ -1220,7 +1223,7 @@ def cmd_ps(app):
         echo("Error: no workers found for app '%s'." % app, fg='red')
 
 
-@cli.command("scale")
+@cli.command("ps:set")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_ps_scale(app, settings):
@@ -1248,10 +1251,10 @@ def cmd_ps_scale(app, settings):
     do_deploy(app, deltas)
 
 
-@cli.command("reload")
+@cli.command("app:reload")
 @click.argument('app')
 def cmd_reload(app):
-    """Reload app: [reload <app>]"""
+    """Reload app: [<app>]"""
     echo("Reloading app", fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1263,7 +1266,7 @@ def cmd_reload(app):
 
 @cli.command("reload-all")
 def cmd_reload_all():
-    """Reload all apps: [reload-all]"""
+    """Reload all apps"""
     echo("Reloading all apps", fg="green")
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
@@ -1273,10 +1276,10 @@ def cmd_reload_all():
             echo("...-> reloading '{}'...".format(app), fg='yellow')
             spawn_app(app)
 
-@cli.command("stop")
+@cli.command("app:stop")
 @click.argument('app')
 def cmd_stop(app):
-    """Stop app: [stop <app>]"""
+    """Stop app: [<app>]"""
     echo("Stopping app", fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1286,7 +1289,7 @@ def cmd_stop(app):
 
 @cli.command("stop-all")
 def cmd_stop_all():
-    """Stop all apps: [stop-all]"""
+    """Stop all apps"""
     echo("Stopping all apps", fg="green")
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):

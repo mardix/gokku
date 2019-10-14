@@ -829,6 +829,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
 
     env['PROC_TYPE'] = app_kind
     env_path = join(ENV_ROOT, app)
+    stats_file = join(env_path, 'metrics.json')
     metrics_path = join(env_path, 'metrics')
     available = join(UWSGI_AVAILABLE, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
     enabled = join(UWSGI_ENABLED, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))

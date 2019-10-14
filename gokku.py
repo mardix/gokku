@@ -1004,8 +1004,8 @@ def get_app_metrics(app):
         f2 = join(metrics_dir, fv)
         if exists(f2):
             with open(f2) as f:
-                v = f.read().strip()
-                metrics[fk] = v if v != "" else "-"
+                v = f.read().strip().split("\n")
+                metrics[fk] = v[0] if len(v) > 1 else "-"
         else:
             metrics[fk] = "-"
     return metrics

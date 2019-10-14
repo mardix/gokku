@@ -59,6 +59,7 @@ UWSGI_ROOT = abspath(join(DOT_ROOT, "uwsgi"))
 UWSGI_LOG_MAXSIZE = '1048576'
 ACME_ROOT = environ.get('ACME_ROOT', join(environ['HOME'], '.acme.sh'))
 ACME_WWW = abspath(join(DOT_ROOT, "acme"))
+METRICS_ROOT = abspath(join(DOT_ROOT, "metrics"))
 
 if 'sbin' not in environ['PATH']:
     environ['PATH'] = "/usr/local/sbin:/usr/sbin:/sbin:" + environ['PATH']
@@ -429,12 +430,12 @@ def get_app_env(app):
 
  
 def get_app_metrics(app):
-    metrics_dir = join(ENV_ROOT, app, 'metrics')
+    metrics_dir = join(METRICS_ROOT, app)
     met = {
         "avg": "core.avg_response_time",
         "rss": "rss_size",
         "vsz": "vsz_size",
-        "tx": "core.total_tx"
+        "tx":  "core.total_tx"
     }
     metrics = {}
     for fk, fv in met.items():
@@ -446,6 +447,7 @@ def get_app_metrics(app):
         else:
             metrics[fk] = "-"
     return metrics
+
 
 def run_app_scripts(app, script_type, env=None):
     cwd = join(APP_ROOT, app)
@@ -497,7 +499,7 @@ def do_deploy(app, deltas={}, newrev=None):
             echo("ERROR: Invalid app.json for app '%s'." % app, fg="red")
             exit(1)
         elif not workers:
-            echo("ERROR: app.json missing the 'gokku.run' processes or it is empty")
+            echo("ERROR: app.json missing the 'gokku.run' processes or 'gokku.run' it is empty", fg="red")
             exit(1)
         else:
             # ensure path exist
@@ -548,7 +550,6 @@ def deploy_node(app, deltas={}):
     virtualenv_path = join(ENV_ROOT, app)
     node_path = join(ENV_ROOT, app, "node_modules")
     node_path_tmp = join(APP_ROOT, app, "node_modules")
-    env_file = join(APP_ROOT, app, 'ENV')
     deps = join(APP_ROOT, app, 'package.json')
 
     first_time = False
@@ -563,8 +564,6 @@ def deploy_node(app, deltas={}):
         'NPM_CONFIG_PREFIX': abspath(join(node_path, "..")),
         "PATH": ':'.join([join(virtualenv_path, "bin"), join(node_path, ".bin"), environ['PATH']])
     }
-    if exists(env_file):
-        env.update(parse_settings(env_file, env))
 
     version = env.get("RUNTIME_VERSION")
 
@@ -631,8 +630,9 @@ def spawn_app(app, deltas={}):
     worker_count = {k: 1 for k in workers.keys()}
 
     virtualenv_path = join(ENV_ROOT, app)
-    live = join(ENV_ROOT, app, 'LIVE_ENV')
+    live = join(ENV_ROOT, app, 'ENV')
     scaling = join(ENV_ROOT, app, 'SCALING')
+    settings = join(ENV_ROOT, app, 'SETTINGS')
 
     # Bootstrap environment
     env = {
@@ -660,6 +660,9 @@ def spawn_app(app, deltas={}):
     # Load environment variables shipped with repo (if any)
     env.update(get_app_env(app))
 
+    # Override with custom settings (if any)
+    if exists(settings):
+        env.update(parse_settings(settings, env))
 
     if 'web' in workers:
         # Pick a port if none defined
@@ -860,7 +863,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
 
     env['PROC_TYPE'] = app_kind
     env_path = join(ENV_ROOT, app)
-    metrics_path = join(env_path, 'metrics')
+    metrics_path = join(METRICS_ROOT, app)
     available = join(UWSGI_AVAILABLE, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
     enabled = join(UWSGI_ENABLED, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
     log_file = join(LOG_ROOT, app, kind)
@@ -1046,7 +1049,7 @@ def list_apps():
                     running = True
             else:
                 running = app in enabled
-            
+
             status = "Yes" if running else "No"
             avg = metrics.get("avg", "-")
             rss = metrics.get("rss", "-")
@@ -1059,11 +1062,11 @@ def list_apps():
 @cli.command("settings")
 @click.argument('app')
 def cmd_config(app):
-    """Show settings: [config <app>]"""
+    """Show settings: [settings <app>]"""
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    config_file = join(ENV_ROOT, app, 'ENV')
+    config_file = join(ENV_ROOT, app, 'SETTINGS')
     print_title(app=app, title="Settings")
     if exists(config_file):
         echo(open(config_file).read().strip(), fg='white')
@@ -1079,7 +1082,7 @@ def cmd_config_set(app, settings):
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    config_file = join(ENV_ROOT, app, 'ENV')
+    config_file = join(ENV_ROOT, app, 'SETTINGS')
     env = parse_settings(config_file)
     for s in settings:
         try:
@@ -1102,7 +1105,7 @@ def cmd_config_unset(app, settings):
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
 
-    config_file = join(ENV_ROOT, app, 'ENV')
+    config_file = join(ENV_ROOT, app, 'SETTINGS')
     env = parse_settings(config_file)
     for s in settings:
         if s in env:
@@ -1119,7 +1122,7 @@ def cmd_config_live(app):
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    live_config = join(ENV_ROOT, app, 'LIVE_ENV')
+    live_config = join(ENV_ROOT, app, 'ENV')
     print_title(app=app, title="Live Config")
     if exists(live_config):
         echo(open(live_config).read().strip(), fg='white')
@@ -1141,6 +1144,7 @@ def cmd_deploy(app):
 @click.argument('app')
 def cmd_destroy(app):
     """Delete app: [destroy <app>]"""
+
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
 
@@ -1154,7 +1158,7 @@ def cmd_destroy(app):
     # on destroy
     run_app_scripts(app, "destroy")
 
-    for p in [join(x, app) for x in [APP_ROOT, GIT_ROOT, ENV_ROOT, LOG_ROOT]]:
+    for p in [join(x, app) for x in [APP_ROOT, GIT_ROOT, ENV_ROOT, LOG_ROOT, METRICS_ROOT]]:
         if exists(p):
             echo("Removing folder '{}'".format(p), fg='yellow')
             rmtree(p)
@@ -1243,23 +1247,34 @@ def cmd_ps_scale(app, settings):
     do_deploy(app, deltas)
 
 
-@cli.command("restart")
+@cli.command("reload")
 @click.argument('app')
-def cmd_restart(app):
-    """Restart app: [restart <app>]"""
-
+def cmd_reload(app):
+    """Reload app: [reload <app>]"""
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
+    remove_nginx_conf(app)
     cleanup_uwsgi_enabled_ini(app)
-    echo("Restarting app '{}'...".format(app), fg='yellow')
+    echo("reloading app '{}'...".format(app), fg='yellow')
     spawn_app(app)
 
+
+@cli.command("reload-all")
+def cmd_reload_all():
+    """Reload all apps: [reload-all]"""
+    echo("------> reloading all apps", fg="green")
+    for app in listdir(APP_ROOT):
+        if not app.startswith((".", "_")):
+            app = sanitize_app_name(app)
+            remove_nginx_conf(app)
+            cleanup_uwsgi_enabled_ini(app)
+            echo("reloading app '{}'...".format(app), fg='yellow')
+            spawn_app(app)
 
 @cli.command("stop")
 @click.argument('app')
 def cmd_stop(app):
     """Stop app: [stop <app>]"""
-
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     echo("removed nginx config file", fg="yellow")
@@ -1267,7 +1282,16 @@ def cmd_stop(app):
     cleanup_uwsgi_enabled_ini(app)
     echo("App '%s' stopped" % app, fg='yellow')
 
-
+@cli.command("stop-all")
+def cmd_stop_all():
+    """Stop all apps: [stop-all]"""
+    echo("------> stopping all apps", fg="green")
+    for app in listdir(APP_ROOT):
+        if not app.startswith((".", "_")):
+            app = sanitize_app_name(app)
+            remove_nginx_conf(app)
+            cleanup_uwsgi_enabled_ini(app)
+            echo("- app '%s' stopped" % app, fg='yellow')
 
 @cli.command("init")
 def cmd_init():
@@ -1276,7 +1300,7 @@ def cmd_init():
     echo("Running in Python {}".format(".".join(map(str, version_info))))
 
     # Create required paths
-    for p in [APP_ROOT, GIT_ROOT, ACME_WWW, ENV_ROOT, UWSGI_ROOT, UWSGI_AVAILABLE, UWSGI_ENABLED, LOG_ROOT, NGINX_ROOT]:
+    for p in [APP_ROOT, GIT_ROOT, ACME_WWW, ENV_ROOT, UWSGI_ROOT, UWSGI_AVAILABLE, UWSGI_ENABLED, LOG_ROOT, NGINX_ROOT, METRICS_ROOT]:
         if not exists(p):
             echo("Creating '{}'.".format(p), fg='green')
             makedirs(p)

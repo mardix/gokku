@@ -8,6 +8,7 @@ A very small PaaS to do git push deployments to your own servers. Supports Pytho
 - SSL with LetsEncrypt
 - Instant deploy
 - Native app languages: Python, Node, PHP, HTML/Static site
+- Metrics
 
 ### Requirements
 - Fresh server

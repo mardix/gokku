@@ -261,6 +261,18 @@ def print_title(app=None, title=None):
         print(title)
     print(" ")
 
+def human_size(n):
+    # G
+    if n >= (1024*1024*1024):
+        return "%.1fG" % (n/(1024*1024*1024))
+    # M
+    if n >= (1024*1024):
+        return "%.1fM" % (n/(1024*1024))
+    # K
+    if n >= 1024:
+        return "%.1fK" % (n/1024)
+    return "%d" % n
+
 def sanitize_app_name(app):
     """Sanitize the app name and build matching path"""
     return "".join(c for c in app if c.isalnum() or c in ('.', '_')).rstrip().lstrip('/')
@@ -415,6 +427,25 @@ def get_app_env(app):
 
     return env
 
+ 
+def get_app_metrics(app):
+    metrics_dir = join(ENV_ROOT, app, 'metrics')
+    met = {
+        "avg": "core.avg_response_time",
+        "rss": "rss_size",
+        "vsz": "vsz_size",
+        "tx": "core.total_tx"
+    }
+    metrics = {}
+    for fk, fv in met.items():
+        f2 = join(metrics_dir, fv)
+        if exists(f2):
+            with open(f2) as f:
+                v = f.read().strip().split("\n")
+                metrics[fk] = human_size(int(v[0])) if len(v) > 1 else "-"
+        else:
+            metrics[fk] = "-"
+    return metrics
 
 def run_app_scripts(app, script_type, env=None):
     cwd = join(APP_ROOT, app)
@@ -991,24 +1022,6 @@ def cli():
 
 
 # --- User commands ---
-def get_app_metrics(app):
-    metrics_dir = join(ENV_ROOT, app, 'metrics')
-    met = {
-        "avg": "core.avg_response_time",
-        "rss": "rss_size",
-        "vsz": "vsz_size",
-        "tx": "core.total_tx"
-    }
-    metrics = {}
-    for fk, fv in met.items():
-        f2 = join(metrics_dir, fv)
-        if exists(f2):
-            with open(f2) as f:
-                v = f.read().strip().split("\n")
-                metrics[fk] = v[0] if len(v) > 1 else "-"
-        else:
-            metrics[fk] = "-"
-    return metrics
 
 @cli.command("apps")
 def list_apps():
@@ -1043,14 +1056,15 @@ def list_apps():
     print_title()
     print_table(data)
 
-@cli.command("config")
+@cli.command("settings")
 @click.argument('app')
 def cmd_config(app):
-    """Show config: [config <app>]"""
+    """Show settings: [config <app>]"""
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'ENV')
+    print_title(app=app, title="Settings")
     if exists(config_file):
         echo(open(config_file).read().strip(), fg='white')
     else:
@@ -1061,7 +1075,7 @@ def cmd_config(app):
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_set(app, settings):
-    """Set config: [set <app> [{KEY1}={VAL1}, ...]]"""
+    """Update settings: [set <app> [{KEY1}={VAL1}, ...]]"""
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1083,7 +1097,7 @@ def cmd_config_set(app, settings):
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_unset(app, settings):
-    """Unset config: [unset <app> {KEY}] """
+    """Remove settings: [unset <app> {KEY}] """
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1098,7 +1112,7 @@ def cmd_config_unset(app, settings):
     do_deploy(app)
 
 
-@cli.command("config ")
+@cli.command("config")
 @click.argument('app')
 def cmd_config_live(app):
     """live configuration: [config <app>] """
@@ -1106,6 +1120,7 @@ def cmd_config_live(app):
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     live_config = join(ENV_ROOT, app, 'LIVE_ENV')
+    print_title(app=app, title="Live Config")
     if exists(live_config):
         echo(open(live_config).read().strip(), fg='white')
     else:

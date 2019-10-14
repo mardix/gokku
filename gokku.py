@@ -1189,10 +1189,10 @@ def cmd_destroy(app):
         unlink(acme_link)
 
 
-@cli.command("logs")
+@cli.command("app:log")
 @click.argument('app')
 def cmd_logs(app):
-    """Read tail logs: [logs <app>]"""
+    """Read tail logs [<app>]"""
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)

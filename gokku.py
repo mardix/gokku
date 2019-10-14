@@ -1127,8 +1127,9 @@ def cmd_config_live(app):
         echo("Warning: app '{}' not deployed, no config found.".format(app), fg='yellow')
 
     if exists(settings_file):
+        echo("")
         echo("---------- Custom ENV settings ----------")
-        echo(open(config_file).read().strip(), fg='white')
+        echo(open(settings_file).read().strip(), fg='white')
 
 @cli.command("deploy")
 @click.argument('app')

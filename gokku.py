@@ -1021,7 +1021,7 @@ def delete_app_metrics(app):
     if exists(metrics_dir):
         rmtree(metrics_dir)
     if not exists(metrics_dir):
-        mkdires(metrics_dir)
+        mkdirs(metrics_dir)
 
 # === CLI commands ===
 

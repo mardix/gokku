@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.31"
+VERSION = "0.0.32"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -1022,7 +1022,7 @@ def delete_app_metrics(app):
     if exists(metrics_dir):
         rmtree(metrics_dir)
     if not exists(metrics_dir):
-        mkdirs(metrics_dir)
+        makedirs(metrics_dir)
 
 # === CLI commands ===
 

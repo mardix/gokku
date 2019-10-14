@@ -1376,13 +1376,13 @@ def cmd_version():
 @cli.command("update")
 def cmd_update():
     """ Update Gokku to the latest from Github """
+    print_title(title="Updating")
     url = "https://raw.githubusercontent.com/mardix/gokku/master/gokku.py"
-    echo("......-> Updating %s" % NAME, fg="green")
-    echo("...downloading 'gokku.py'")
+    echo("...downloading 'gokku.py' from github")
     unlink(GOKKU_SCRIPT)
     urllib.request.urlretrieve(url, GOKKU_SCRIPT)
     chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
-    echo("Update completed!", fg="green")
+    echo("...update completed!", fg="green")
 
 
 

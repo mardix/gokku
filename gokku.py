@@ -1069,25 +1069,11 @@ def list_apps():
             data.append([app, runtime, status, web_len, workers_len, avg, rss, vsz, tx])
     print_table(data)
 
-@cli.command("settings")
-@click.argument('app')
-def cmd_config(app):
-    """Show settings: [settings <app>]"""
-    print_title(app=app, title="Settings")
-    exit_if_not_exists(app)
-    app = sanitize_app_name(app)
-    config_file = join(ENV_ROOT, app, 'SETTINGS')
-    if exists(config_file):
-        echo(open(config_file).read().strip(), fg='white')
-    else:
-        echo("Warning: app '{}' not deployed, no config found.".format(app), fg='yellow')
-
-
-@cli.command("set")
+@cli.command("env:set")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_set(app, settings):
-    """Update settings: [set <app> [{KEY1}={VAL1}, ...]]"""
+    """Update settings: [env:set <app> [{KEY1}={VAL1}, ...]]"""
 
     echo("Update settings for %s" % app, fg="green")
     exit_if_not_exists(app)
@@ -1106,11 +1092,11 @@ def cmd_config_set(app, settings):
     do_deploy(app)
 
 
-@cli.command("unset")
+@cli.command("env:del")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_unset(app, settings):
-    """Remove settings: [unset <app> {KEY}] """
+    """Delete settings: [env:del <app> {KEY}] """
 
     echo("Update settings for %s" % app, fg="green")
     exit_if_not_exists(app)
@@ -1125,19 +1111,24 @@ def cmd_config_unset(app, settings):
     do_deploy(app)
 
 
-@cli.command("config")
+@cli.command("env")
 @click.argument('app')
 def cmd_config_live(app):
-    """Show configuration: [config <app>] """
-    print_title(app=app, title="Config")
+    """Show env settings: [env <app>] """
+    print_title(app=app, title="Env Settings")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     live_config = join(ENV_ROOT, app, 'ENV')
+    settings_file = join(ENV_ROOT, app, 'SETTINGS')
+    
     if exists(live_config):
-        echo(open(live_config).read().strip(), fg='white')
+        echo(open(live_config).read().strip(), fg='white') 
     else:
         echo("Warning: app '{}' not deployed, no config found.".format(app), fg='yellow')
 
+    if exists(settings_file):
+        echo("---------- Custom ENV settings ----------")
+        echo(open(config_file).read().strip(), fg='white')
 
 @cli.command("deploy")
 @click.argument('app')
@@ -1301,7 +1292,7 @@ def cmd_stop_all():
             app = sanitize_app_name(app)
             remove_nginx_conf(app)
             cleanup_uwsgi_enabled_ini(app)
-            echo("...-> '%s' stopped" % app, fg='yellow')
+            echo("......-> '%s' stopped" % app, fg='yellow')
 
 @cli.command("init")
 def cmd_init():

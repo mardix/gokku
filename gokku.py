@@ -44,6 +44,7 @@ NAME = "Gokku"
 VERSION = "0.0.31"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
+
 GOKKU_SCRIPT = realpath(__file__)
 GOKKU_ROOT = environ.get('GOKKU_ROOT', environ['HOME'])
 GOKKU_BIN = join(environ['HOME'], 'bin')

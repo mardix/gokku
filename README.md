@@ -269,6 +269,7 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - combined static html & php
   - Support languages: Python(2, 3), Static HTML, PHP
   - simplify command name
+  - added metrics
 
 
 ---

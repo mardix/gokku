@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.29"
+VERSION = "0.0.30"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 GOKKU_SCRIPT = realpath(__file__)
@@ -829,14 +829,14 @@ def spawn_worker(app, kind, command, env, ordinal=1):
 
     env['PROC_TYPE'] = app_kind
     env_path = join(ENV_ROOT, app)
-    stats_file = join(env_path, 'metrics.json')
     metrics_path = join(env_path, 'metrics')
     available = join(UWSGI_AVAILABLE, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
     enabled = join(UWSGI_ENABLED, '{app:s}___{kind:s}.{ordinal:d}.ini'.format(**locals()))
     log_file = join(LOG_ROOT, app, kind)
 
-    # if not exists(metrics_path):
-    #     makedirs(metrics_path)
+    # Create metrics dir
+    if not exists(metrics_path):
+        makedirs(metrics_path)
 
     settings = [
         ('chdir',               join(APP_ROOT, app)),
@@ -851,8 +851,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
         ('log-maxsize',         env.get('UWSGI_LOG_MAXSIZE', UWSGI_LOG_MAXSIZE)),
         ('logto',               '{log_file:s}.{ordinal:d}.log'.format(**locals())),
         ('log-backupname',      '{log_file:s}.{ordinal:d}.log.old'.format(**locals())),
-        ('plugin', 'stats_pusher_file'),
-        ('stats-push',          stats_file),
+        ('metrics-dir',         metrics_path),
     ]
 
     http = '{BIND_ADDRESS:s}:{PORT:s}'.format(**env)

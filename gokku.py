@@ -324,7 +324,7 @@ def install_acme_sh():
     if exists(ACME_ROOT):
         return
     try:
-        echo("-......-> Installing acme.sh", fg="green")
+        echo("......-> Installing acme.sh", fg="green")
         dest = join(GOKKU_ROOT, "acme.sh")
         url = "https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh"
         content = urlopen(url).read().decode("utf-8")
@@ -1271,7 +1271,7 @@ def cmd_reload(app):
 @cli.command("reload-all")
 def cmd_reload_all():
     """Reload all apps: [reload-all]"""
-    echo("-......-> reloading all apps", fg="green")
+    echo("......-> reloading all apps", fg="green")
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             app = sanitize_app_name(app)
@@ -1294,7 +1294,7 @@ def cmd_stop(app):
 @cli.command("stop-all")
 def cmd_stop_all():
     """Stop all apps: [stop-all]"""
-    echo("-......-> stopping all apps", fg="green")
+    echo("......-> stopping all apps", fg="green")
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             app = sanitize_app_name(app)
@@ -1377,7 +1377,7 @@ def cmd_version():
 def cmd_update():
     """ Update Gokku to the latest from Github """
     url = "https://raw.githubusercontent.com/mardix/gokku/master/gokku.py"
-    echo("-......-> Updating %s" % NAME, fg="green")
+    echo("......-> Updating %s" % NAME, fg="green")
     echo("...downloading 'gokku.py'")
     unlink(GOKKU_SCRIPT)
     urllib.request.urlretrieve(url, GOKKU_SCRIPT)

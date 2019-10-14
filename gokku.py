@@ -1218,7 +1218,7 @@ def cmd_ps(app):
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SCALING')
-    
+
     if exists(config_file):
         with open(config_file) as f:
             data = [[l.split(":")[0], l.split(":")[1]] for l in f.read().strip().split("\n")]
@@ -1278,7 +1278,7 @@ def cmd_reload_all():
             app = sanitize_app_name(app)
             remove_nginx_conf(app)
             cleanup_uwsgi_enabled_ini(app)
-            echo("......-> reloading '{}'...".format(app), fg='yellow')
+            echo("...-> reloading '{}'...".format(app), fg='yellow')
             spawn_app(app)
 
 @cli.command("stop")
@@ -1301,7 +1301,7 @@ def cmd_stop_all():
             app = sanitize_app_name(app)
             remove_nginx_conf(app)
             cleanup_uwsgi_enabled_ini(app)
-            echo("......-> '%s' stopped" % app, fg='yellow')
+            echo("...-> '%s' stopped" % app, fg='yellow')
 
 @cli.command("init")
 def cmd_init():

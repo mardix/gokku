@@ -508,6 +508,9 @@ def do_deploy(app, deltas={}, newrev=None):
                 if not exists(p):
                     makedirs(p)            
 
+            # Delete app metrics 
+            delete_app_metrics(app)
+
             runtime = get_app_runtime(app)
             env2 = get_app_env(app)
 
@@ -634,9 +637,6 @@ def spawn_app(app, deltas={}):
     live = join(ENV_ROOT, app, 'ENV')
     scaling = join(ENV_ROOT, app, 'SCALING')
     settings = join(ENV_ROOT, app, 'SETTINGS')
-
-    # Delete app metrics 
-    delete_app_metrics(app)
 
     # Bootstrap environment
     env = {
@@ -1039,6 +1039,7 @@ def cli():
 @cli.command("apps")
 def list_apps():
     """List all apps: [apps]"""
+    print_title(title="All apps")
     enabled = {a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a}
     data = [["App", "Runtime", "Running", "Web", "Workers", "AVG", "RSS", "VSZ", "TX"]]
     for app in listdir(APP_ROOT):
@@ -1066,18 +1067,16 @@ def list_apps():
             vsz = metrics.get("vsz", "-")
             tx = metrics.get("tx", "-")
             data.append([app, runtime, status, web_len, workers_len, avg, rss, vsz, tx])
-    print_title()
     print_table(data)
 
 @cli.command("settings")
 @click.argument('app')
 def cmd_config(app):
     """Show settings: [settings <app>]"""
-
+    print_title(app=app, title="Settings")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SETTINGS')
-    print_title(app=app, title="Settings")
     if exists(config_file):
         echo(open(config_file).read().strip(), fg='white')
     else:
@@ -1090,6 +1089,7 @@ def cmd_config(app):
 def cmd_config_set(app, settings):
     """Update settings: [set <app> [{KEY1}={VAL1}, ...]]"""
 
+    echo("Update settings for %s" % app, fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SETTINGS')
@@ -1098,7 +1098,7 @@ def cmd_config_set(app, settings):
         try:
             k, v = map(lambda x: x.strip(), s.split("=", 1))
             env[k] = v
-            echo("Setting {k:s}={v} for '{app:s}'".format(**locals()), fg='white')
+            echo("......-> set {k:s}={v} for '{app:s}'".format(**locals()), fg='white')
         except:
             echo("Error: malformed setting '{}'".format(s), fg='red')
             return
@@ -1112,15 +1112,15 @@ def cmd_config_set(app, settings):
 def cmd_config_unset(app, settings):
     """Remove settings: [unset <app> {KEY}] """
 
+    echo("Update settings for %s" % app, fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-
     config_file = join(ENV_ROOT, app, 'SETTINGS')
     env = parse_settings(config_file)
     for s in settings:
         if s in env:
             del env[s]
-            echo("Unsetting {} for '{}'".format(s, app), fg='white')
+            echo("......-> unset {} for '{}'".format(s, app), fg='white')
     write_config(config_file, env)
     do_deploy(app)
 
@@ -1128,12 +1128,11 @@ def cmd_config_unset(app, settings):
 @cli.command("config")
 @click.argument('app')
 def cmd_config_live(app):
-    """live configuration: [config <app>] """
-
+    """Show configuration: [config <app>] """
+    print_title(app=app, title="Config")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     live_config = join(ENV_ROOT, app, 'ENV')
-    print_title(app=app, title="Live Config")
     if exists(live_config):
         echo(open(live_config).read().strip(), fg='white')
     else:
@@ -1144,7 +1143,7 @@ def cmd_config_live(app):
 @click.argument('app')
 def cmd_deploy(app):
     """Deploy app: [deploy <app>]"""
-
+    echo("Deploy app", fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     do_deploy(app)
@@ -1154,12 +1153,12 @@ def cmd_deploy(app):
 @click.argument('app')
 def cmd_destroy(app):
     """Delete app: [destroy <app>]"""
+    echo("**** WARNING ****", fg="red")
+    echo("**** YOU ARE ABOUT TO DESTROY AN APP ****", fg="red")
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
 
-    echo("**** WARNING ****", fg="red")
-    echo("**** YOU ARE ABOUT TO DESTROY AN APP ****", fg="red")
     if not click.confirm("Do you want to destroy this app? It will delete everything"):
         exit(1)
     if not click.confirm("Are you really sure?"):
@@ -1215,11 +1214,11 @@ def cmd_logs(app):
 def cmd_ps(app):
     """Show process count: [ps <app>]"""
 
+    print_title(app=app,title="Process")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SCALING')
-
-    print_title(app=app,title="Process")
+    
     if exists(config_file):
         with open(config_file) as f:
             data = [[l.split(":")[0], l.split(":")[1]] for l in f.read().strip().split("\n")]
@@ -1261,47 +1260,48 @@ def cmd_ps_scale(app, settings):
 @click.argument('app')
 def cmd_reload(app):
     """Reload app: [reload <app>]"""
+    echo("Reloading app", fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     remove_nginx_conf(app)
     cleanup_uwsgi_enabled_ini(app)
-    echo("reloading app '{}'...".format(app), fg='yellow')
+    echo("......-> reloading '{}'...".format(app), fg='yellow')
     spawn_app(app)
 
 
 @cli.command("reload-all")
 def cmd_reload_all():
     """Reload all apps: [reload-all]"""
-    echo("......-> reloading all apps", fg="green")
+    echo("Reloading all apps", fg="green")
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             app = sanitize_app_name(app)
             remove_nginx_conf(app)
             cleanup_uwsgi_enabled_ini(app)
-            echo("reloading app '{}'...".format(app), fg='yellow')
+            echo("......-> reloading '{}'...".format(app), fg='yellow')
             spawn_app(app)
 
 @cli.command("stop")
 @click.argument('app')
 def cmd_stop(app):
     """Stop app: [stop <app>]"""
+    echo("Stopping app", fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    echo("removed nginx config file", fg="yellow")
     remove_nginx_conf(app)
     cleanup_uwsgi_enabled_ini(app)
-    echo("App '%s' stopped" % app, fg='yellow')
+    echo("......-> '%s' stopped" % app, fg='yellow')
 
 @cli.command("stop-all")
 def cmd_stop_all():
     """Stop all apps: [stop-all]"""
-    echo("......-> stopping all apps", fg="green")
+    echo("Stopping all apps", fg="green")
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             app = sanitize_app_name(app)
             remove_nginx_conf(app)
             cleanup_uwsgi_enabled_ini(app)
-            echo("- app '%s' stopped" % app, fg='yellow')
+            echo("......-> '%s' stopped" % app, fg='yellow')
 
 @cli.command("init")
 def cmd_init():

@@ -991,16 +991,36 @@ def cli():
 
 
 # --- User commands ---
+def get_app_metrics(app):
+    metrics_dir = join(ENV_ROOT, app, 'metrics')
+    met = {
+        "avg": "core.avg_response_time",
+        "rss": "rss_size",
+        "vsz": "vsz_size",
+        "tx": "core.total_tx"
+    }
+    metrics = {}
+    for fk, fv in met.items():
+        f2 = join(metrics_dir, fv)
+        if exists(f2):
+            with open(f2) as f:
+                v = f.read().strip()
+                metrics[fk] = v if v != "" else "-"
+        else:
+            metrics[fk] = "-"
+    return metrics
 
 @cli.command("apps")
 def list_apps():
     """List all apps: [apps]"""
     enabled = {a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a}
-    data = [["App", "Runtime", "Status", "Web", "Workers"]]
+    data = [["App", "Runtime", "Running", "Web", "Workers", "AVG", "RSS", "VSZ", "TX"]]
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             runtime = get_app_runtime(app)
             workers = get_app_workers(app)
+            metrics = get_app_metrics(app)
+
             nginx_file = join(NGINX_ROOT, "%s.conf" % app)
             running = False
             workers_len = len(workers.keys()) if workers else 0 
@@ -1014,8 +1034,12 @@ def list_apps():
             else:
                 running = app in enabled
             
-            status = "running" if running else "not running"
-            data.append([app, runtime, status, web_len, workers_len])
+            status = "Yes" if running else "No"
+            avg = metrics.get("avg", "-")
+            rss = metrics.get("rss", "-")
+            vsz = metrics.get("vsz", "-")
+            tx = metrics.get("tx", "-")
+            data.append([app, runtime, status, web_len, workers_len, avg, rss, vsz, tx])
     print_title()
     print_table(data)
 

@@ -1383,7 +1383,23 @@ def cmd_update():
     chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
     echo("...update completed!", fg="green")
 
-# ssl:set
+@cli.command("ssl:download")
+def cmd_ssl_download("app"):
+    """Downloading SSL CERT & KEY"""
+    echo("Copy and paste ", fg="green")
+    exit_if_not_exists(app)
+    app = sanitize_app_name(app)
+    key = join(NGINX_ROOT, "%s.%s" % (app, 'key'))
+    crt = join(NGINX_ROOT, "%s.%s" % (app, 'crt')) 
+    echo("")   
+    call('cat %s' % cert, shell=True)
+    echo("-" * 80)
+    call('cat %s' % key, shell=True)
+    echo("") 
+
+# ssl:download
+# ssl:upload-key
+# ssl:upload-crt
 def cmd_x(): pass
 
 # --- Internal commands ---

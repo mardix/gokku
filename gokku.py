@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.41"
+VERSION = "0.0.42"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -1053,11 +1053,12 @@ def list_apps():
             runtime = get_app_runtime(app)
             workers = get_app_workers(app)
             metrics = get_app_metrics(app)
+            settings = parse_settings(join(ENV_ROOT, app, 'ENV'))
 
             nginx_file = join(NGINX_ROOT, "%s.conf" % app)
             running = False
-            port = "-"
-            ssl = "-"
+            port = settings.get("PORT", "-")
+            ssl = 1 if settings.get("SSL_LETSENCRYPT") is True else 0
             avg = metrics.get("avg", "-")
             rss = metrics.get("rss", "-")
             vsz = metrics.get("vsz", "-")

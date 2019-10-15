@@ -332,7 +332,6 @@ def install_acme_sh():
     call("curl https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh | INSTALLONLINE=1  sh", cwd=GOKKU_ROOT, shell=True)
 
 
-
 def parse_procfile(filename):
     """Parses a Procfile and returns the worker types. Only one worker of each type is allowed."""
 
@@ -700,7 +699,8 @@ def spawn_app(app, deltas={}):
             echo("......-> nginx will look for app '{}' on {}".format(app, env['NGINX_SOCKET']))
 
             domain = env['NGINX_SERVER_NAME'].split()[0]
-            key, crt = [join(NGINX_ROOT, "{}.{}".format(app, x)) for x in ['key', 'crt']]
+            key = join(NGINX_ROOT, "%s.%s" % (app, 'key'))
+            crt = join(NGINX_ROOT, "%s.%s" % (app, 'crt'))
             if exists(join(ACME_ROOT, "acme.sh")):
                 acme = ACME_ROOT
                 www = ACME_WWW
@@ -714,8 +714,7 @@ def spawn_app(app, deltas={}):
                 if not exists(key) or not exists(join(ACME_ROOT, domain, domain + ".key")):
                     echo("......-> getting letsencrypt certificate")
                     call('{acme:s}/acme.sh --issue -d {domain:s} -w {www:s}'.format(**locals()), shell=True)
-                    call(
-                        '{acme:s}/acme.sh --install-cert -d {domain:s} --key-file {key:s} --fullchain-file {crt:s}'.format(**locals()), shell=True)
+                    call('{acme:s}/acme.sh --install-cert -d {domain:s} --key-file {key:s} --fullchain-file {crt:s}'.format(**locals()), shell=True)
                     if exists(join(ACME_ROOT, domain)) and not exists(join(ACME_WWW, app)):
                         symlink(join(ACME_ROOT, domain), join(ACME_WWW, app))
                 else:

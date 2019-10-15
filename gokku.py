@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.40"
+VERSION = "0.0.41"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -645,6 +645,10 @@ def spawn_app(app, deltas={}):
         'PATH': ':'.join([join(virtualenv_path, 'bin'), environ['PATH']]),
         'PWD': app_path,
         'VIRTUAL_ENV': virtualenv_path,
+        'SSL_LETSENCRYPT': True,
+        'HTTPS_ONLY': True,
+        'AUTO_RESTART': False,
+        'WSGI': True
     }
 
     safe_defaults = {
@@ -703,7 +707,7 @@ def spawn_app(app, deltas={}):
             crt = join(NGINX_ROOT, "%s.%s" % (app, 'crt'))
 
             # LETSENCRYPT
-            if env.get("SSL_LETSENCRYPT", True) is True and exists(join(ACME_ROOT, "acme.sh")):
+            if env.get("SSL_LETSENCRYPT") is True and exists(join(ACME_ROOT, "acme.sh")):
                 acme = ACME_ROOT
                 www = ACME_WWW
                 # if this is the first run there will be no nginx conf yet
@@ -787,7 +791,7 @@ def spawn_app(app, deltas={}):
 
             echo("......-> nginx will map app '{}' to hostname '{}'".format(app, env['NGINX_SERVER_NAME']))
             
-            if env.get('HTTPS_ONLY', True) is True:
+            if env.get('HTTPS_ONLY') is True:
                 buffer = expandvars(NGINX_HTTPS_ONLY_TEMPLATE, env)
                 echo("......-> nginx will redirect all requests to hostname '{}' to HTTPS".format(env['NGINX_SERVER_NAME']))
             else:
@@ -1043,7 +1047,7 @@ def list_apps():
     """List all apps"""
     print_title("All apps")
     enabled = {a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a}
-    data = [["App", "Runtime", "Running", "Web", "Port", "Workers", "AVG", "RSS", "VSZ", "TX"]]
+    data = [["App", "Runtime", "Running", "Web", "Port", "SSL", "Workers", "AVG", "RSS", "VSZ", "TX"]]
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             runtime = get_app_runtime(app)
@@ -1053,6 +1057,11 @@ def list_apps():
             nginx_file = join(NGINX_ROOT, "%s.conf" % app)
             running = False
             port = "-"
+            ssl = "-"
+            avg = metrics.get("avg", "-")
+            rss = metrics.get("rss", "-")
+            vsz = metrics.get("vsz", "-")
+            tx = metrics.get("tx", "-")
 
             workers_len = len(workers.keys()) if workers else 0 
             web_len = 0 
@@ -1064,14 +1073,9 @@ def list_apps():
                     running = True
             else:
                 running = app in enabled
+            status = 1 if running else "-"
 
-            
-            status = "Yes" if running else "No"
-            avg = metrics.get("avg", "-")
-            rss = metrics.get("rss", "-")
-            vsz = metrics.get("vsz", "-")
-            tx = metrics.get("tx", "-")
-            data.append([app, runtime, status, web_len, port, workers_len, avg, rss, vsz, tx])
+            data.append([app, runtime, status, web_len, port, ssl, workers_len, avg, rss, vsz, tx])
     print_table(data)
 
 @cli.command("env:set")

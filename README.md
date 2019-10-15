@@ -44,22 +44,7 @@ It supports Python (Flask/Django), Nodejs, PHP and Static HTML.
 ### Commands
 
 ```
-  apps     List all apps: [apps]
-  config   Show config: [config <app>]
-  config   live configuration: [config <app>]
-  deploy   Deploy app: [deploy <app>]
-  destroy  Destroy app: [destroy <app>]
-  init     Initialize environment
-  logs     Read tail logs: [logs <app>]
-  ps       Show process count: [ps <app>]
-  restart  Restart app: [restart <app>]
-  scale    Scale processes: [<app> [<proc>=<count>,...
-  set      Set config: [set <app> [{KEY1}={VAL1}, ...]]
-  set-ssh  Set up a new SSH key (use - for stdin)
-  stop     Stop app: [stop <app>]
-  unset    Unset config: [unset <app> {KEY}]
-  upgrade  Upgrade to the latest version of Gokku
-  version  Get Version
+
 ```
 ---
 

@@ -225,6 +225,7 @@ INTERNAL_NGINX_STATIC_CLAUSES = """
 def any_in_list(l1, t2):
     return any((True for x in l1 if x in t2))
 
+
 def print_table(table, with_header=True):
     """
     To print data in table.
@@ -254,6 +255,7 @@ def print_table(table, with_header=True):
         print(row_format.format(*row))
     print(line)
 
+
 def print_title(app=None, title=None):
     print("-" * 80)
     print("Gokku v%s" % VERSION)
@@ -262,6 +264,7 @@ def print_title(app=None, title=None):
     if title:
         print(title)
     print(" ")
+
 
 def human_size(n):
     # G
@@ -275,6 +278,7 @@ def human_size(n):
         return "%.1fK" % (n/1024)
     return "%d" % n
 
+
 def sanitize_app_name(app):
     """Sanitize the app name and build matching path"""
     return "".join(c for c in app if c.isalnum() or c in ('.', '_')).rstrip().lstrip('/')
@@ -284,7 +288,7 @@ def exit_if_not_exists(app):
     """Utility function for error checking upon command startup."""
     app = sanitize_app_name(app)
     if not exists(join(APP_ROOT, app)):
-        echo("Error: app '%s' not found." % app, fg='red')
+        echo("ERROR: app '%s' not found." % app, fg='red')
         exit(1)
 
 
@@ -473,7 +477,7 @@ def get_app_runtime(app):
     return "static"
 
 
-def do_deploy(app, deltas={}, newrev=None):
+def do_deploy(app, deltas={}, newrev=None, release=False):
     """Deploy an app by resetting the work directory"""
 
     app_path = join(APP_ROOT, app)
@@ -530,17 +534,21 @@ def do_deploy(app, deltas={}, newrev=None):
                             echo("ERROR: For static site the webroot must start with a '/' (slash), instead '%s' provided" % workers["web"], fg="red")
                             exit(1)                            
                     
+                # Setup runtime
                 # python
                 if runtime == "python":
-                    deploy_python(app, deltas)
+                    setup_python_runtime(app, deltas)
                 # node
                 elif runtime == "node":
-                    deploy_node(app, deltas)
+                    setup_node_runtime(app, deltas)
                 # static html/php, shell
                 elif runtime in ["static", "shell"]:
-                    deploy_static_shell(app, deltas)
+                    setup_shell_runtime(app, deltas)
 
-                # Spawn app
+                # Run release script. Once on git push
+                if release is True:
+                    run_app_scripts(app, "release")
+
                 run_app_scripts(app, "predeploy")
                 spawn_app(app, deltas)
                 run_app_scripts(app, "postdeploy")
@@ -548,7 +556,7 @@ def do_deploy(app, deltas={}, newrev=None):
         echo("Error: app '{}' not found.".format(app), fg='red')
 
 
-def deploy_node(app, deltas={}):
+def setup_node_runtime(app, deltas={}):
     """Deploy a Node  application"""
 
     virtualenv_path = join(ENV_ROOT, app)
@@ -595,7 +603,7 @@ def deploy_node(app, deltas={}):
             unlink(node_path_tmp)
 
 
-def deploy_python(app, deltas={}):
+def setup_python_runtime(app, deltas={}):
     """Deploy a Python application"""
 
     virtualenv_path = join(ENV_ROOT, app)
@@ -619,7 +627,7 @@ def deploy_python(app, deltas={}):
         call('pip install -r {} --upgrade'.format(requirements), cwd=virtualenv_path, shell=True)
 
 
-def deploy_static_shell(app, deltas={}):
+def setup_shell_runtime(app, deltas={}):
     pass
 
 
@@ -1041,7 +1049,7 @@ def list_apps():
     """List all apps"""
     print_title(title="All apps")
     enabled = {a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a}
-    data = [["App", "Runtime", "Running", "Web", "Workers", "AVG", "RSS", "VSZ", "TX"]]
+    data = [["App", "Runtime", "Running", "Web", "Port", "Workers", "AVG", "RSS", "VSZ", "TX"]]
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             runtime = get_app_runtime(app)
@@ -1050,6 +1058,8 @@ def list_apps():
 
             nginx_file = join(NGINX_ROOT, "%s.conf" % app)
             running = False
+            port = "-"
+
             workers_len = len(workers.keys()) if workers else 0 
             web_len = 0 
             if "web" in workers:
@@ -1061,12 +1071,13 @@ def list_apps():
             else:
                 running = app in enabled
 
+            
             status = "Yes" if running else "No"
             avg = metrics.get("avg", "-")
             rss = metrics.get("rss", "-")
             vsz = metrics.get("vsz", "-")
             tx = metrics.get("tx", "-")
-            data.append([app, runtime, status, web_len, workers_len, avg, rss, vsz, tx])
+            data.append([app, runtime, status, web_len, port, workers_len, avg, rss, vsz, tx])
     print_table(data)
 
 @cli.command("env:set")
@@ -1302,7 +1313,8 @@ def cmd_stop_all():
 def cmd_init():
     """Initialize environment"""
 
-    echo("Running in Python {}".format(".".join(map(str, version_info))))
+    print_title()
+    echo("......-> running in Python {}".format(".".join(map(str, version_info))))
 
     # Create required paths
     for p in [APP_ROOT, GIT_ROOT, ACME_WWW, ENV_ROOT, UWSGI_ROOT, UWSGI_AVAILABLE, UWSGI_ENABLED, LOG_ROOT, NGINX_ROOT, METRICS_ROOT]:
@@ -1380,7 +1392,8 @@ def cmd_update():
     chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
     echo("...update completed!", fg="green")
 
-
+# ssl:set
+def cmd_x(): pass
 
 # --- Internal commands ---
 
@@ -1397,9 +1410,8 @@ def cmd_git_hook(app):
             echo("......-> Creating app '{}'".format(app), fg='green')
             makedirs(app_path)
             call('git clone --quiet {} {}'.format(repo_path, app), cwd=APP_ROOT, shell=True)
-        # On each release
-        run_app_scripts(app, "release")
-        do_deploy(app, newrev=newrev)
+
+        do_deploy(app, newrev=newrev, release=True)
 
 
 def cmd_git_receive_pack(app):

@@ -97,7 +97,8 @@ If the root directory contains `requirements.txt` it will use Python, `package.j
 {
   "gokku": {
     "env": {
-      "domain_name": "mysite.com"
+      "domain_name": "mysite.com",
+      "runtime": "python"
     },
     "run": {
       "web": "app:app"
@@ -156,6 +157,8 @@ Once you are ready to deploy, push your code to master
       "threads": "4",
       // wsgi (bool): if runtime is python by default it will use wsgi, if false it will fallback to the command provided
       "wsgi": true,
+      // letsencrypt (bool)
+      "letsencrypt": true,
 
       // nginx (object): nginx specific config. can be omitted
       "nginx": {
@@ -221,6 +224,7 @@ Copy and edit the config below in your `app.json` file.
       "https_only": true,
       "threads": 4,
       "wsgi": true,
+      "letsencrypt": true,
       "nginx": {
         "cloudflare_acl": false,
         "include_file": ""
@@ -252,6 +256,14 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
 
 ---
 
+## Alternatives
+
+- [Dokku](https://github.com/dokku/dokku)
+- [Piku](https://github.com/piku/piku)
+- [Caprover](https://github.com/CapRover/CapRover)
+
+---
+
 ## CHANGELOG
 
 - 0.1.0
@@ -268,9 +280,10 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - reformat uwsgi file name '{app-name}___{kind}.{index}.ini' (3 underscores)
   - static sites have their own directives
   - combined static html & php
-  - Support languages: Python(2, 3), Static HTML, PHP
+  - Support languages: Python(2, 3), Node, Static HTML, PHP
   - simplify command name
   - added metrics
+  - [x] letsencrypt?
 
 
 ---

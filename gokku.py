@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.39"
+VERSION = "0.0.40"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 

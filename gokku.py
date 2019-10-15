@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.37"
+VERSION = "0.0.38"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -699,26 +699,28 @@ def spawn_app(app, deltas={}):
             echo("......-> nginx will look for app '{}' on {}".format(app, env['NGINX_SOCKET']))
 
             domain = env['NGINX_SERVER_NAME'].split()[0]
-            key = join(NGINX_ROOT, "%s.%s" % (app, 'key'))
-            crt = join(NGINX_ROOT, "%s.%s" % (app, 'crt'))
-            if exists(join(ACME_ROOT, "acme.sh")):
-                acme = ACME_ROOT
-                www = ACME_WWW
-                # if this is the first run there will be no nginx conf yet
-                # create a basic conf stub just to serve the acme auth
-                if not exists(nginx_conf):
-                    echo("......-> writing temporary nginx conf")
-                    buffer = expandvars(NGINX_ACME_FIRSTRUN_TEMPLATE, env)
-                    with open(nginx_conf, "w") as h:
-                        h.write(buffer)
-                if not exists(key) or not exists(join(ACME_ROOT, domain, domain + ".key")):
-                    echo("......-> getting letsencrypt certificate")
-                    call('{acme:s}/acme.sh --issue -d {domain:s} -w {www:s}'.format(**locals()), shell=True)
-                    call('{acme:s}/acme.sh --install-cert -d {domain:s} --key-file {key:s} --fullchain-file {crt:s}'.format(**locals()), shell=True)
-                    if exists(join(ACME_ROOT, domain)) and not exists(join(ACME_WWW, app)):
-                        symlink(join(ACME_ROOT, domain), join(ACME_WWW, app))
-                else:
-                    echo("......-> letsencrypt certificate already installed")
+            key = join(NGINX_ROOT, "%s.%s" % (app, 'key2'))
+            crt = join(NGINX_ROOT, "%s.%s" % (app, 'crt2'))
+
+            # LETSENCRYPT
+            # if exists(join(ACME_ROOT, "acme.sh")):
+            #     acme = ACME_ROOT
+            #     www = ACME_WWW
+            #     # if this is the first run there will be no nginx conf yet
+            #     # create a basic conf stub just to serve the acme auth
+            #     if not exists(nginx_conf):
+            #         echo("......-> writing temporary nginx conf")
+            #         buffer = expandvars(NGINX_ACME_FIRSTRUN_TEMPLATE, env)
+            #         with open(nginx_conf, "w") as h:
+            #             h.write(buffer)
+            #     if not exists(key) or not exists(join(ACME_ROOT, domain, domain + ".key")):
+            #         echo("......-> getting letsencrypt certificate")
+            #         call('{acme:s}/acme.sh --issue -d {domain:s} -w {www:s}'.format(**locals()), shell=True)
+            #         call('{acme:s}/acme.sh --install-cert -d {domain:s} --key-file {key:s} --fullchain-file {crt:s}'.format(**locals()), shell=True)
+            #         if exists(join(ACME_ROOT, domain)) and not exists(join(ACME_WWW, app)):
+            #             symlink(join(ACME_ROOT, domain), join(ACME_WWW, app))
+            #     else:
+            #         echo("......-> letsencrypt certificate already installed")
 
             # fall back to creating self-signed certificate if acme failed
             if not exists(key) or stat(crt).st_size == 0:
@@ -785,8 +787,7 @@ def spawn_app(app, deltas={}):
             echo("......-> nginx will map app '{}' to hostname '{}'".format(app, env['NGINX_SERVER_NAME']))
             if 'NGINX_HTTPS_ONLY' in env or 'HTTPS_ONLY' in env:
                 buffer = expandvars(NGINX_HTTPS_ONLY_TEMPLATE, env)
-                echo(
-                    "......-> nginx will redirect all requests to hostname '{}' to HTTPS".format(env['NGINX_SERVER_NAME']))
+                echo("......-> nginx will redirect all requests to hostname '{}' to HTTPS".format(env['NGINX_SERVER_NAME']))
             else:
                 buffer = expandvars(NGINX_TEMPLATE, env)
             with open(nginx_conf, "w") as h:

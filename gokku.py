@@ -256,7 +256,7 @@ def print_table(table, with_header=True):
     print(line)
 
 
-def print_title(app=None, title=None):
+def print_title(title=None, app=None):
     print("-" * 80)
     print("Gokku v%s" % VERSION)
     if app:
@@ -699,28 +699,28 @@ def spawn_app(app, deltas={}):
             echo("......-> nginx will look for app '{}' on {}".format(app, env['NGINX_SOCKET']))
 
             domain = env['NGINX_SERVER_NAME'].split()[0]
-            key = join(NGINX_ROOT, "%s.%s" % (app, 'key2'))
-            crt = join(NGINX_ROOT, "%s.%s" % (app, 'crt2'))
+            key = join(NGINX_ROOT, "%s.%s" % (app, 'key'))
+            crt = join(NGINX_ROOT, "%s.%s" % (app, 'crt'))
 
             # LETSENCRYPT
-            # if exists(join(ACME_ROOT, "acme.sh")):
-            #     acme = ACME_ROOT
-            #     www = ACME_WWW
-            #     # if this is the first run there will be no nginx conf yet
-            #     # create a basic conf stub just to serve the acme auth
-            #     if not exists(nginx_conf):
-            #         echo("......-> writing temporary nginx conf")
-            #         buffer = expandvars(NGINX_ACME_FIRSTRUN_TEMPLATE, env)
-            #         with open(nginx_conf, "w") as h:
-            #             h.write(buffer)
-            #     if not exists(key) or not exists(join(ACME_ROOT, domain, domain + ".key")):
-            #         echo("......-> getting letsencrypt certificate")
-            #         call('{acme:s}/acme.sh --issue -d {domain:s} -w {www:s}'.format(**locals()), shell=True)
-            #         call('{acme:s}/acme.sh --install-cert -d {domain:s} --key-file {key:s} --fullchain-file {crt:s}'.format(**locals()), shell=True)
-            #         if exists(join(ACME_ROOT, domain)) and not exists(join(ACME_WWW, app)):
-            #             symlink(join(ACME_ROOT, domain), join(ACME_WWW, app))
-            #     else:
-            #         echo("......-> letsencrypt certificate already installed")
+            if env.get("SSL_LETSENCRYPT", True) is True and exists(join(ACME_ROOT, "acme.sh")):
+                acme = ACME_ROOT
+                www = ACME_WWW
+                # if this is the first run there will be no nginx conf yet
+                # create a basic conf stub just to serve the acme auth
+                if not exists(nginx_conf):
+                    echo("......-> writing temporary nginx conf")
+                    buffer = expandvars(NGINX_ACME_FIRSTRUN_TEMPLATE, env)
+                    with open(nginx_conf, "w") as h:
+                        h.write(buffer)
+                if not exists(key) or not exists(join(ACME_ROOT, domain, domain + ".key")):
+                    echo("......-> getting letsencrypt certificate")
+                    call('{acme:s}/acme.sh --issue -d {domain:s} -w {www:s}'.format(**locals()), shell=True)
+                    call('{acme:s}/acme.sh --install-cert -d {domain:s} --key-file {key:s} --fullchain-file {crt:s}'.format(**locals()), shell=True)
+                    if exists(join(ACME_ROOT, domain)) and not exists(join(ACME_WWW, app)):
+                        symlink(join(ACME_ROOT, domain), join(ACME_WWW, app))
+                else:
+                    echo("......-> letsencrypt certificate already installed")
 
             # fall back to creating self-signed certificate if acme failed
             if not exists(key) or stat(crt).st_size == 0:
@@ -780,16 +780,19 @@ def spawn_app(app, deltas={}):
             env['INTERNAL_NGINX_CUSTOM_CLAUSES'] = expandvars(
                 open(join(app_path, env["NGINX_INCLUDE_FILE"])).read(), env) if env.get("NGINX_INCLUDE_FILE") else ""
             env['INTERNAL_NGINX_PORTMAP'] = ""
-            if 'web' in workers or 'wsgi' in workers:
+
+            if "static" not in runtime:
                 env['INTERNAL_NGINX_PORTMAP'] = expandvars(NGINX_PORTMAP_FRAGMENT, env)
             env['INTERNAL_NGINX_COMMON'] = expandvars(NGINX_COMMON_FRAGMENT, env)
 
             echo("......-> nginx will map app '{}' to hostname '{}'".format(app, env['NGINX_SERVER_NAME']))
-            if 'NGINX_HTTPS_ONLY' in env or 'HTTPS_ONLY' in env:
+            
+            if env.get('HTTPS_ONLY', True) is True:
                 buffer = expandvars(NGINX_HTTPS_ONLY_TEMPLATE, env)
                 echo("......-> nginx will redirect all requests to hostname '{}' to HTTPS".format(env['NGINX_SERVER_NAME']))
             else:
                 buffer = expandvars(NGINX_TEMPLATE, env)
+
             with open(nginx_conf, "w") as h:
                 h.write(buffer)
             # prevent broken config from breaking other deploys
@@ -1038,7 +1041,7 @@ def cli():
 @cli.command("apps")
 def list_apps():
     """List all apps"""
-    print_title(title="All apps")
+    print_title("All apps")
     enabled = {a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a}
     data = [["App", "Runtime", "Running", "Web", "Port", "Workers", "AVG", "RSS", "VSZ", "TX"]]
     for app in listdir(APP_ROOT):
@@ -1117,7 +1120,7 @@ def cmd_config_unset(app, settings):
 @click.argument('app')
 def cmd_config_live(app):
     """Show env settings: [<app>] """
-    print_title(app=app, title="Env Settings")
+    print_title("Env Settings", app=app)
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     live_config = join(ENV_ROOT, app, 'ENV')
@@ -1211,7 +1214,7 @@ def cmd_logs(app):
 def cmd_ps(app):
     """Show process count: [<app>]"""
 
-    print_title(app=app,title="Process")
+    print_title("Process", app=app)
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SCALING')
@@ -1375,7 +1378,7 @@ def cmd_version():
 @cli.command("update")
 def cmd_update():
     """ Update Gokku to the latest from Github """
-    print_title(title="Updating")
+    print_title("Updating")
     url = "https://raw.githubusercontent.com/mardix/gokku/master/gokku.py"
     echo("...downloading 'gokku.py' from github")
     unlink(GOKKU_SCRIPT)
@@ -1387,6 +1390,7 @@ def cmd_update():
 @click.argument('app')
 def cmd_ssl_download(app):
     """Downloading SSL CERT & KEY"""
+    print_title("Download SSL Key & Cert")
     echo("Copy and paste ", fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1400,7 +1404,7 @@ def cmd_ssl_download(app):
     call('cat %s' % key, shell=True)
     echo("") 
 
-# ssl:download
+
 # ssl:upload-key
 # ssl:upload-crt
 def cmd_x(): pass

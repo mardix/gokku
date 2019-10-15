@@ -1,21 +1,38 @@
 # Gokku
 
-A very small PaaS to do git push deployments to your own servers. Supports Python (Flask/Django), Node, PHP and Static HTML, process similar to Heroku
+An extremly tiny PaaS (platform as a s service) to deploy multiple apps on a single servers  with git, similar to Heroku or Dokku. 
+
+It is simple and compatible with current infrastucture. 
+
+It supports Python (Flask/Django), Nodejs, PHP and Static HTML.
+
+
+
 
 ### Features
 
-- Deploy to own server
-- SSL with LetsEncrypt
-- Instant deploy
-- Native app languages: Python, Node, PHP, HTML/Static site
-- Metrics
+- Easy command line setup
+- Instant deploy with Git
+- Multi applications
+- App management: deploy, stop, delete, scale, logs apps
+- Simple and straight forward
+- SSL/HTTPS with LetsEncrypt
+- Any languages: Python, Nodejs, PHP, HTML/Static
+- Supports any Shell script, therefore any other languages are supported
+- Metrics to see app's health
+- Create static sites
+- Support Flask, Django, Express, etc...
+- Easy configuration with app.json
+- Nginx
+- Logs
 
 ### Requirements
+
 - Fresh server
 - SSH to server with root access
 - Ubuntu 18.04
 
-### Languages
+### Languages Supported
 
 - [x] Python 
 - [x] Nodejs
@@ -151,14 +168,14 @@ Once you are ready to deploy, push your code to master
       "auto_restart": false,
       // static_paths (array): specify list of static path to expose, [/url:path, ...]
       "static_paths": ["/url:path", "/url2:path2"],
-      // https_only (bool): when true, it will redirect http to https
+      // https_only (bool): when true (default), it will redirect http to https
       "https_only": true,
       // threads (int): The total threads to use
       "threads": "4",
       // wsgi (bool): if runtime is python by default it will use wsgi, if false it will fallback to the command provided
       "wsgi": true,
-      // letsencrypt (bool)
-      "letsencrypt": true,
+      // letsencrypt (bool) true(default)
+      "ssl_letsencrypt": true,
 
       // nginx (object): nginx specific config. can be omitted
       "nginx": {
@@ -224,7 +241,7 @@ Copy and edit the config below in your `app.json` file.
       "https_only": true,
       "threads": 4,
       "wsgi": true,
-      "letsencrypt": true,
+      "ssl_letsencrypt": true,
       "nginx": {
         "cloudflare_acl": false,
         "include_file": ""
@@ -283,7 +300,9 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - Support languages: Python(2, 3), Node, Static HTML, PHP
   - simplify command name
   - added metrics
-  - [x] letsencrypt?
+  - Letsencrypt
+  - ssl default
+  - https default
 
 
 ---

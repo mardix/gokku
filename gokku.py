@@ -1392,9 +1392,11 @@ def cmd_ssl_download(app):
     app = sanitize_app_name(app)
     key = join(NGINX_ROOT, "%s.%s" % (app, 'key'))
     crt = join(NGINX_ROOT, "%s.%s" % (app, 'crt')) 
-    echo("")   
-    call('cat %s' % cert, shell=True)
+    echo("") 
+    echo("SSL CRT:")  
+    call('cat %s' % crt, shell=True)
     echo("-" * 80)
+    echo("SSL KEY:")
     call('cat %s' % key, shell=True)
     echo("") 
 

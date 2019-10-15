@@ -1384,7 +1384,7 @@ def cmd_update():
     echo("...update completed!", fg="green")
 
 @cli.command("ssl:download")
-def cmd_ssl_download("app"):
+def cmd_ssl_download(app):
     """Downloading SSL CERT & KEY"""
     echo("Copy and paste ", fg="green")
     exit_if_not_exists(app)

@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.36"
+VERSION = "0.0.37"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -328,18 +328,9 @@ def install_acme_sh():
     """ Install acme.sh for letsencrypt """
     if exists(ACME_ROOT):
         return
-    try:
-        echo("......-> Installing acme.sh", fg="green")
-        dest = join(GOKKU_ROOT, "acme.sh")
-        url = "https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh"
-        content = urlopen(url).read().decode("utf-8")
-        with open(dest, "w") as f:
-            f.write(content)
-        chmod(dest, 755)
-        call("./acme.sh --install", cwd=GOKKU_ROOT, shell=True)
-        remove(dest)
-    except Exception as e:
-        echo('Unable to download acme.sh: %s' % e, type="error")
+    echo("......-> Installing acme.sh", fg="green")
+    call("curl https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh | INSTALLONLINE=1  sh", cwd=GOKKU_ROOT, shell=True)
+
 
 
 def parse_procfile(filename):

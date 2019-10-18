@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.44"
+VERSION = "0.0.45"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -428,7 +428,7 @@ def get_app_config(app):
     return env
 
 def get_app_env(app):
-    return get_config.get("env", {})
+    return get_config(app).get("env", {})
 
 def get_app_metrics(app):
     metrics_dir = join(METRICS_ROOT, app)

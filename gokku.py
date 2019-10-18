@@ -402,7 +402,7 @@ def get_app_config(app):
     config = get_config(app)
 
     rm_keys = ["env", "scripts", "run"]
-    [del(config[k]) for k in rm_keys]
+    [del config[k] for k in rm_keys]
 
     for k, v in config.items():
         if isinstance(v, dict):
@@ -483,7 +483,7 @@ def do_deploy(app, deltas={}, newrev=None, release=False):
     env = {
         'GIT_WORK_DIR': app_path
     }
-    
+
     if exists(app_path):
         echo("......-> Deploying app '{}'".format(app), fg='green')
         call('git fetch --quiet', cwd=app_path, env=env, shell=True)

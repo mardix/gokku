@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.46"
+VERSION = "0.0.47"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -450,11 +450,14 @@ def get_app_metrics(app):
     return metrics
 
 
-def run_app_scripts(app, script_type, env=None):
+def run_app_scripts(app, script_type):
     cwd = join(APP_ROOT, app)
     config = get_config(app)
+
     if "scripts" in config and script_type in config["scripts"]:
+        env = get_spawn_env(app)
         echo("......-> Running scripts: %s ..." % script_type, fg="green")
+        
         for cmd in config["scripts"][script_type]:
             call(cmd, cwd=cwd, env=env, shell=True)
 
@@ -552,6 +555,23 @@ def do_deploy(app, deltas={}, newrev=None, release=False):
     else:
         echo("Error: app '{}' not found.".format(app), fg='red')
 
+
+def get_spawn_env(app):
+    settings = join(ENV_ROOT, app, 'SETTINGS')
+
+    env = {}
+
+    # Load settings
+    env.update(get_app_config(app))
+
+    # Load environment variables shipped with repo (if any)
+    env.update(get_app_env(app))
+
+    # Override with custom settings (if any)
+    if exists(settings):
+        env.update(parse_settings(settings, env))
+
+    return env 
 
 def setup_node_runtime(app, deltas={}):
     """Deploy a Node  application"""
@@ -670,16 +690,8 @@ def spawn_app(app, deltas={}):
         env["NODE_PATH"] = node_path
         env["PATH"] = ':'.join([join(node_path, ".bin"), env['PATH']])
 
-
-    # Load settings
-    env.update(get_app_config(app))
-
-    # Load environment variables shipped with repo (if any)
-    env.update(get_app_env(app))
-
-    # Override with custom settings (if any)
-    if exists(settings):
-        env.update(parse_settings(settings, env))
+    # SPAWN Env
+    env.update(get_spawn_env(app))
 
     if 'web' in workers:
         # Pick a port if none defined

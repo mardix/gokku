@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.43"
+VERSION = "0.0.44"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -403,7 +403,8 @@ def get_app_config(app):
 
     # special keys
     for k in ["env", "scripts", "run"]:
-        del config[k]
+        if k in config:
+            del config[k]
 
     for k, v in config.items():
         if isinstance(v, dict):

@@ -401,8 +401,9 @@ def get_app_config(app):
     env = {}
     config = get_config(app)
 
-    rm_keys = ["env", "scripts", "run"]
-    [del config[k] for k in rm_keys]
+    # special keys
+    for k in ["env", "scripts", "run"]:
+        del config[k]
 
     for k, v in config.items():
         if isinstance(v, dict):

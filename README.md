@@ -98,10 +98,8 @@ If the root directory contains `requirements.txt` it will use Python, `package.j
 
 {
   "gokku": {
-    "env": {
-      "domain_name": "mysite.com",
-      "runtime": "python"
-    },
+    "domain_name": "mysite.com",
+    "runtime": "python",
     "run": {
       "web": "app:app"
     }
@@ -137,42 +135,44 @@ Once you are ready to deploy, push your code to master
   // gokku: GOKKU specific configuration
   "gokku": {
 
-    // env: environment variables 
+    // domain_name (string): the server name without http
+    "domain_name": "",
+    // runtime: python|node|static|shell
+    // python for wsgi application (default python)
+    // node: for node application, where the command should be ie: 'node inde.js 2>&1 | cat'
+    // static: for HTML/Static page and PHP
+    // shell: for any script that can be executed via the shell script, ie: command 2>&1 | cat
+    "runtime": "python",
+    // runtime_version: python : 3(default)|2, node: node version
+    "runtime_version": "3",
+    // auto_restart (bool): to force server restarts when deploying
+    "auto_restart": false,
+    // static_paths (array): specify list of static path to expose, [/url:path, ...]
+    "static_paths": ["/url:path", "/url2:path2"],
+    // https_only (bool): when true (default), it will redirect http to https
+    "https_only": true,
+    // threads (int): The total threads to use
+    "threads": "4",
+    // wsgi (bool): if runtime is python by default it will use wsgi, if false it will fallback to the command provided
+    "wsgi": true,
+    // letsencrypt (bool) true(default)
+    "ssl_letsencrypt": true,
+
+    // nginx (object): nginx specific config. can be omitted
+    "nginx": {
+      "cloudflare_acl": false,
+      "include_file": ""
+    },  
+
+    // uwsgi (object): uwsgi specific config. can be omitted
+    "uwsgi": {
+      "gevent": false,
+      "asyncio": false
+    },
+
+    // env, custom environment variable
     "env": {
-      // domain_name (string): the server name without http
-      "domain_name": "",
-      // runtime: python|node|static|shell
-      // python for wsgi application (default python)
-      // node: for node application, where the command should be ie: 'node inde.js 2>&1 | cat'
-      // static: for HTML/Static page and PHP
-      // shell: for any script that can be executed via the shell script, ie: command 2>&1 | cat
-      "runtime": "python",
-      // runtime_version: python : 3(default)|2, node: node version
-      "runtime_version": "3",
-      // auto_restart (bool): to force server restarts when deploying
-      "auto_restart": false,
-      // static_paths (array): specify list of static path to expose, [/url:path, ...]
-      "static_paths": ["/url:path", "/url2:path2"],
-      // https_only (bool): when true (default), it will redirect http to https
-      "https_only": true,
-      // threads (int): The total threads to use
-      "threads": "4",
-      // wsgi (bool): if runtime is python by default it will use wsgi, if false it will fallback to the command provided
-      "wsgi": true,
-      // letsencrypt (bool) true(default)
-      "ssl_letsencrypt": true,
 
-      // nginx (object): nginx specific config. can be omitted
-      "nginx": {
-        "cloudflare_acl": false,
-        "include_file": ""
-      },  
-
-      // uwsgi (object): uwsgi specific config. can be omitted
-      "uwsgi": {
-        "gevent": false,
-        "asyncio": false
-      }    
     },
 
     // scripts to run during application lifecycle
@@ -217,24 +217,25 @@ Copy and edit the config below in your `app.json` file.
   "version": "",
   "description": "",
   "gokku": {
+    "domain_name": "",
+    "runtime": "static",
+    "runtime_version": "3",
+    "auto_restart": true,
+    "static_paths": [],
+    "https_only": true,
+    "threads": 4,
+    "wsgi": true,
+    "ssl_letsencrypt": true,
+    "nginx": {
+      "cloudflare_acl": false,
+      "include_file": ""
+    },  
+    "uwsgi": {
+      "gevent": false,
+      "asyncio": false
+    },    
     "env": {
-      "domain_name": "",
-      "runtime": "static",
-      "runtime_version": "3",
-      "auto_restart": true,
-      "static_paths": [],
-      "https_only": true,
-      "threads": 4,
-      "wsgi": true,
-      "ssl_letsencrypt": true,
-      "nginx": {
-        "cloudflare_acl": false,
-        "include_file": ""
-      },  
-      "uwsgi": {
-        "gevent": false,
-        "asyncio": false
-      }    
+
     },
     "scripts": {
       "release": [],
@@ -275,7 +276,7 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - added 'cli.upgrade' to upgrade to the latest version
   - 'app.json' can now have scripts to run 
   - 'uwsgi' and 'nginx' are hidden, 'app.env' can contain basic key
-  - 'app.env.static_paths' is an array
+  - 'app.static_paths' is an array
   - Fixed python virtualenv setup, if the repo was used for a different runtime
   - Simplifying "web" worker. No need for static or wsgi.
   - Python default to wsgi worker, to force to a standalone set env.wsgi: false

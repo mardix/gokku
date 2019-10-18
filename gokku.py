@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.42"
+VERSION = "0.0.43"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -345,7 +345,6 @@ def parse_procfile(filename):
                 workers[kind] = command
             except:
                 echo("Warning: unrecognized Procfile entry '{}'".format(line), fg='yellow')
-
     return workers
 
 
@@ -384,7 +383,7 @@ def parse_settings(filename, env={}):
                 return {}
     return env
 
-def get_app_config(app):
+def get_config(app):
     """ Return the info from app.json """
     config_file = join(APP_ROOT, app, "app.json")
     with open(config_file) as f:
@@ -394,36 +393,41 @@ def get_app_config(app):
 
 def get_app_workers(app):
     """ Returns the applications to run """
-    return get_app_config(app)["run"]
+    return get_config(app)["run"]
 
 
-def get_app_env(app):
+def get_app_config(app):
     """ Turn config into ENV """
     env = {}
-    config = get_app_config(app)
-    if "env" in config:
-        for k, v in config["env"].items():
-            if isinstance(v, dict):
-                env.update({("%s_%s" % (k, vk)).upper(): vv for vk, vv in v.items()})
-            else:
-                env[k.upper()] = v
+    config = get_config(app)
 
-        mapper = {
-            "SERVER_NAME": "NGINX_SERVER_NAME",
-            "DOMAIN_NAME": "NGINX_SERVER_NAME",
-            "STATIC_PATHS": "NGINX_STATIC_PATHS",
-            "HTTPS_ONLY": "NGINX_HTTPS_ONLY",
-            "THREADS": "UWSGI_THREADS",
-            "GEVENT": "UWSGI_GEVENT",
-            "ASYNCIO": "UWSGI_ASYNCIO"
-        }
-        for k, v in mapper.items():
-            if k in env and v not in env:
-                env[v] = env[k]
+    rm_keys = ["env", "scripts", "run"]
+    [del(config[k]) for k in rm_keys]
 
+    for k, v in config.items():
+        if isinstance(v, dict):
+            env.update({("%s_%s" % (k, vk)).upper(): vv for vk, vv in v.items()})
+        else:
+            env[k.upper()] = v
+
+    # Remap keys
+    mapper = {
+        "SERVER_NAME": "NGINX_SERVER_NAME",
+        "DOMAIN_NAME": "NGINX_SERVER_NAME",
+        "STATIC_PATHS": "NGINX_STATIC_PATHS",
+        "HTTPS_ONLY": "NGINX_HTTPS_ONLY",
+        "THREADS": "UWSGI_THREADS",
+        "GEVENT": "UWSGI_GEVENT",
+        "ASYNCIO": "UWSGI_ASYNCIO"
+    }
+    for k, v in mapper.items():
+        if k in env and v not in env:
+            env[v] = env[k]
     return env
 
- 
+def get_app_env(app):
+    return get_config.get("env", {})
+
 def get_app_metrics(app):
     metrics_dir = join(METRICS_ROOT, app)
     met = {
@@ -446,7 +450,7 @@ def get_app_metrics(app):
 
 def run_app_scripts(app, script_type, env=None):
     cwd = join(APP_ROOT, app)
-    config = get_app_config(app)
+    config = get_config(app)
     if "scripts" in config and script_type in config["scripts"]:
         echo("......-> Running scripts: %s ..." % script_type, fg="green")
         for cmd in config["scripts"][script_type]:
@@ -455,7 +459,7 @@ def run_app_scripts(app, script_type, env=None):
 
 def get_app_runtime(app):
     app_path = join(APP_ROOT, app)
-    config = get_app_env(app)
+    config = get_app_config(app)
     runtime = config.get("RUNTIME")
 
     if runtime and runtime.lower() in VALID_RUNTIME:
@@ -479,6 +483,7 @@ def do_deploy(app, deltas={}, newrev=None, release=False):
     env = {
         'GIT_WORK_DIR': app_path
     }
+    
     if exists(app_path):
         echo("......-> Deploying app '{}'".format(app), fg='green')
         call('git fetch --quiet', cwd=app_path, env=env, shell=True)
@@ -487,7 +492,7 @@ def do_deploy(app, deltas={}, newrev=None, release=False):
         call('git submodule init', cwd=app_path, env=env, shell=True)
         call('git submodule update', cwd=app_path, env=env, shell=True)
 
-        config = get_app_config(app)
+        config = get_config(app)
         workers = get_app_workers(app)
     
         if not config:
@@ -506,7 +511,7 @@ def do_deploy(app, deltas={}, newrev=None, release=False):
             delete_app_metrics(app)
 
             runtime = get_app_runtime(app)
-            env2 = get_app_env(app)
+            env2 = get_app_config(app)
 
             if not runtime:
                 echo("......-> Could not detect runtime!", fg="red")
@@ -599,8 +604,8 @@ def setup_python_runtime(app, deltas={}):
     virtualenv_path = join(ENV_ROOT, app)
     requirements = join(APP_ROOT, app, 'requirements.txt')
     activation_script = join(virtualenv_path, 'bin', 'activate_this.py')
-    env = get_app_env(app)
-    version = int(env.get("RUNTIME_VERSION", "3"))
+    config = get_app_config(app)
+    version = int(config.get("RUNTIME_VERSION", "3"))
 
     first_time = False
     if not exists(activation_script):
@@ -662,6 +667,10 @@ def spawn_app(app, deltas={}):
     if exists(node_path):
         env["NODE_PATH"] = node_path
         env["PATH"] = ':'.join([join(node_path, ".bin"), env['PATH']])
+
+
+    # Load settings
+    env.update(get_app_config(app))
 
     # Load environment variables shipped with repo (if any)
     env.update(get_app_env(app))
@@ -862,12 +871,12 @@ def spawn_worker(app, kind, command, env, ordinal=1):
     app_kind = kind
     runtime = get_app_runtime(app)
     workers = get_app_workers(app)
-    envx = get_app_env(app)
+    config = get_app_config(app)
 
     if app_kind == "web":
         app_kind = runtime
         if runtime == "python":
-            app_kind = "wsgi" if envx.get("WSGI", True) is True else "shell"
+            app_kind = "wsgi" if config.get("WSGI", True) is True else "shell"
         elif runtime == "node":
             app_kind = "shell"
 
@@ -1079,13 +1088,13 @@ def list_apps():
             data.append([app, runtime, status, web_len, port, ssl, workers_len, avg, rss, vsz, tx])
     print_table(data)
 
-@cli.command("env:set")
+@cli.command("config:set")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_set(app, settings):
-    """Set env settings: [<app> [{KEY1}={VAL1}, ...]]"""
+    """Set env config: [<app> [{KEY1}={VAL1}, ...]]"""
 
-    echo("Update settings for %s" % app, fg="green")
+    echo("Update config for %s" % app, fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SETTINGS')
@@ -1102,13 +1111,13 @@ def cmd_config_set(app, settings):
     do_deploy(app)
 
 
-@cli.command("env:del")
+@cli.command("config:del")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_unset(app, settings):
-    """Delete env settings: [<app> {KEY}] """
+    """Delete env config: [<app> {KEY}] """
 
-    echo("Update settings for %s" % app, fg="green")
+    echo("Update config for %s" % app, fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     config_file = join(ENV_ROOT, app, 'SETTINGS')
@@ -1121,11 +1130,11 @@ def cmd_config_unset(app, settings):
     do_deploy(app)
 
 
-@cli.command("env")
+@cli.command("config")
 @click.argument('app')
 def cmd_config_live(app):
-    """Show env settings: [<app>] """
-    print_title("Env Settings", app=app)
+    """Show env config: [<app>] """
+    print_title("Env Config", app=app)
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     live_config = join(ENV_ROOT, app, 'ENV')
@@ -1133,7 +1142,7 @@ def cmd_config_live(app):
     
     if exists(live_config):
         echo("")
-        echo("---------- Live ENV settings ----------")        
+        echo("---------- Live Config ----------")        
         echo(open(live_config).read().strip(), fg='white') 
     else:
         echo("Warning: app '{}' not deployed, no config found.".format(app), fg='yellow')
@@ -1141,7 +1150,7 @@ def cmd_config_live(app):
     if exists(settings_file):
         echo("")
         echo("")
-        echo("---------- Custom ENV settings ----------")
+        echo("---------- Custom Config ----------")
         echo(open(settings_file).read().strip(), fg='white')
 
 @cli.command("app:deploy")

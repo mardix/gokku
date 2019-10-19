@@ -340,7 +340,7 @@ def read_env(app, section):
 
 def write_env(app, section, data):
     env_file = join(ENV_ROOT, app, "ENV")
-    env = _get_env()
+    env = _get_env(app)
     if section not in env:
         env.add_section(section)
     [env.set(section, k, str(v)) for k,v in data.items()]

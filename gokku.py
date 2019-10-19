@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.56"
+VERSION = "0.0.57"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -567,16 +567,13 @@ def deploy_app(app, deltas={}, newrev=None, release=False):
 
 
 def get_spawn_env(app):
-    settings = join(ENV_ROOT, app, 'SETTINGS')
-
     env = {}
-    # Load settings
+    # base config from app.json
     env.update(get_app_config(app))
     # Load environment variables shipped with repo (if any)
     env.update(get_app_env(app))
     # Override with custom settings (if any)
-    if exists(settings):
-        env.update(read_env(app, 'SETTINGS'))
+    env.update(read_env(app, 'CUSTOM'))
     return env 
 
 def setup_node_runtime(app, deltas={}):
@@ -854,7 +851,7 @@ def spawn_app(app, deltas={}):
             del env[k]
 
     # Save current settings
-    write_env(app, 'SETTINGS', env)
+    write_env(app, 'ENV', env)
     write_env(app, 'SCALING', worker_count)
 
 
@@ -1079,7 +1076,7 @@ def list_apps():
             runtime = get_app_runtime(app)
             workers = get_app_workers(app)
             metrics = get_app_metrics(app)
-            settings = read_env(app, 'SETTINGS')
+            settings = read_env(app, 'ENV')
 
             nginx_file = join(NGINX_ROOT, "%s.conf" % app)
             running = False
@@ -1156,7 +1153,7 @@ def cmd_config_live(app):
 
     if exists(env_file):
         echo("")      
-        echo(open(live_config).read().strip(), fg='white') 
+        echo(open(env_config).read().strip(), fg='white') 
 
 @cli.command("deploy")
 @click.argument('app')

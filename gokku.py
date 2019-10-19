@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.58"
+VERSION = "0.0.59"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -1142,7 +1142,7 @@ def cmd_config_unset(app, settings):
     deploy_app(app)
 
 
-@cli.command("envs")
+@cli.command("env")
 @click.argument('app')
 def cmd_config_live(app):
     """Show ENV config: [<app>] """
@@ -1317,45 +1317,6 @@ def cmd_stop_all():
             cleanup_uwsgi_enabled_ini(app)
             echo("......-> '%s' stopped" % app, fg='yellow')
 
-@cli.command("init")
-def cmd_init():
-    """Initialize environment"""
-
-    print_title()
-    echo("......-> running in Python {}".format(".".join(map(str, version_info))))
-
-    # Create required paths
-    for p in [APP_ROOT, GIT_ROOT, ACME_WWW, ENV_ROOT, UWSGI_ROOT, UWSGI_AVAILABLE, UWSGI_ENABLED, LOG_ROOT, NGINX_ROOT, METRICS_ROOT]:
-        if not exists(p):
-            echo("Creating '{}'.".format(p), fg='green')
-            makedirs(p)
-
-    # Set up the uWSGI emperor config
-    settings = [
-        ('chdir',           UWSGI_ROOT),
-        ('emperor',         UWSGI_ENABLED),
-        ('log-maxsize',     UWSGI_LOG_MAXSIZE),
-        ('logto',           join(UWSGI_ROOT, 'uwsgi.log')),
-        ('log-backupname',  join(UWSGI_ROOT, 'uwsgi.old.log')),
-        ('socket',          join(UWSGI_ROOT, 'uwsgi.sock')),
-        ('uid',             getpwuid(getuid()).pw_name),
-        ('gid',             getgrgid(getgid()).gr_name),
-        ('enable-threads',  'true'),
-        ('threads',         '{}'.format(cpu_count() * 2)),
-    ]
-    with open(join(UWSGI_ROOT, 'uwsgi.ini'), 'w') as h:
-        h.write('[uwsgi]\n')
-        for k, v in settings:
-            h.write("{k:s} = {v}\n".format(**locals()))
-
-    # mark this script as executable (in case we were invoked via interpreter)
-    if not(stat(GOKKU_SCRIPT).st_mode & S_IXUSR):
-        echo("Setting '{}' as executable.".format(GOKKU_SCRIPT), fg='yellow')
-        chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
-
-    # ACME
-    install_acme_sh()
-
 
 @cli.command("set-ssh")
 @click.argument('public_key_file')
@@ -1425,6 +1386,47 @@ def cmd_x(): pass
 
 # --- Internal commands ---
 
+
+def cmd_init():
+    """Initialize Gokku for 1st time"""
+
+    print_title()
+    echo("......-> running in Python {}".format(".".join(map(str, version_info))))
+
+    # Create required paths
+    for p in [APP_ROOT, GIT_ROOT, ACME_WWW, ENV_ROOT, UWSGI_ROOT, UWSGI_AVAILABLE, UWSGI_ENABLED, LOG_ROOT, NGINX_ROOT, METRICS_ROOT]:
+        if not exists(p):
+            echo("Creating '{}'.".format(p), fg='green')
+            makedirs(p)
+
+    # Set up the uWSGI emperor config
+    settings = [
+        ('chdir',           UWSGI_ROOT),
+        ('emperor',         UWSGI_ENABLED),
+        ('log-maxsize',     UWSGI_LOG_MAXSIZE),
+        ('logto',           join(UWSGI_ROOT, 'uwsgi.log')),
+        ('log-backupname',  join(UWSGI_ROOT, 'uwsgi.old.log')),
+        ('socket',          join(UWSGI_ROOT, 'uwsgi.sock')),
+        ('uid',             getpwuid(getuid()).pw_name),
+        ('gid',             getgrgid(getgid()).gr_name),
+        ('enable-threads',  'true'),
+        ('threads',         '{}'.format(cpu_count() * 2)),
+    ]
+    with open(join(UWSGI_ROOT, 'uwsgi.ini'), 'w') as h:
+        h.write('[uwsgi]\n')
+        for k, v in settings:
+            h.write("{k:s} = {v}\n".format(**locals()))
+
+    # mark this script as executable (in case we were invoked via interpreter)
+    if not(stat(GOKKU_SCRIPT).st_mode & S_IXUSR):
+        echo("Setting '{}' as executable.".format(GOKKU_SCRIPT), fg='yellow')
+        chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
+
+    # ACME
+    install_acme_sh()
+
+
+
 def cmd_git_hook(app):
     """INTERNAL: Post-receive git hook"""
 
@@ -1477,15 +1479,19 @@ def main():
     script_name = sys.argv[0].split('/')[-1]
 
     # Internal GIT command
-    if _argvs and len(_argvs) >= 3 and _argvs[1] in ["git-hook", "git-upload-pack", "git-receive-pack"]:
+    if _argvs and len(_argvs) >= 2 and _argvs[1] in ["init", "git-hook", "git-upload-pack", "git-receive-pack"]:
         cmd = sys.argv[1]
-        app = sys.argv[2]
-        if cmd == "git-hook":
-            cmd_git_hook(app)
-        elif cmd == "git-upload-pack":
-            cmd_git_upload_pack(app)
-        elif cmd == "git-receive-pack":
-            cmd_git_receive_pack(app)
+        
+        if cmd == "init":
+            cmd_init()
+        elif len(_argvs) >= 3:
+            app = sys.argv[2]
+            if cmd == "git-hook":
+                cmd_git_hook(app)
+            elif cmd == "git-upload-pack":
+                cmd_git_upload_pack(app)
+            elif cmd == "git-receive-pack":
+                cmd_git_receive_pack(app)
     else:
         cli()
 

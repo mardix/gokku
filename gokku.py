@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.60"
+VERSION = "0.0.61"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -1251,7 +1251,7 @@ def cmd_ps_scale(app, settings):
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
     env = read_env(app, 'SCALING')
-    worker_count = {k: int(v) for k, v in env.items()}
+    worker_count = {k.lower(): int(v) for k, v in env.items()}
     deltas = {}
     for s in settings:
         try:

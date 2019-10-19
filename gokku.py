@@ -20,7 +20,6 @@ from datetime import datetime
 from fcntl import fcntl, F_SETFL, F_GETFL
 from glob import glob
 from hashlib import md5
-from json import loads
 from multiprocessing import cpu_count
 from os import chmod, getgid, getuid, symlink, unlink, remove, stat, listdir, environ, makedirs, O_NONBLOCK
 from os.path import abspath, basename, dirname, exists, getmtime, join, realpath, splitext
@@ -41,7 +40,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.49"
+VERSION = "0.0.50"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -456,16 +455,19 @@ def run_app_scripts(app, script_type):
     runtime = get_app_runtime(app)
 
     if "scripts" in config and script_type in config["scripts"]:
+        scripts = config["scripts"][script_type]
         env = get_spawn_env(app)
         echo("......-> Running scripts: [%s] ..." % script_type, fg="green")
 
-        # activate python
+        # In python environment, execute everything in the virtualenv
         if runtime == "python":
-            virtualenv_path = join(ENV_ROOT, app)
-            activation_script = join(virtualenv_path, 'bin', 'activate_this.py')
-            exec(open(activation_script).read(), dict(__file__=activation_script))   
-
-        for cmd in config["scripts"][script_type]:
+            venv = join(join(ENV_ROOT, app), 'bin', 'activate');
+            scripts.insert(0, 'source %s' % venv)
+            scripts.append("deactivate")
+            cmds = ("; ".join(scripts)).rstrip(";") + ";"
+            scripts = [cmds]
+  
+        for cmd in scripts:
             call(cmd, cwd=cwd, env=env, shell=True)
 
 
@@ -766,7 +768,7 @@ def spawn_app(app, deltas={}):
             acl = []
             if env.get('NGINX_CLOUDFLARE_ACL', 'false').lower() == 'true':
                 try:
-                    cf = loads(urlopen('https://api.cloudflare.com/client/v4/ips').read().decode("utf-8"))
+                    cf = json.loads(urlopen('https://api.cloudflare.com/client/v4/ips').read().decode("utf-8"))
                     if cf['success'] == True:
                         for i in cf['result']['ipv4_cidrs']:
                             acl.append("allow {};".format(i))

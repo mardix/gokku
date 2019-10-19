@@ -40,7 +40,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.51"
+VERSION = "0.0.52"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -462,7 +462,7 @@ def run_app_scripts(app, script_type):
         # In python environment, execute everything in the virtualenv
         if runtime == "python":
             venv = join(join(ENV_ROOT, app), 'bin', 'activate');
-            scripts.insert(0, 'source %s' % venv)
+            scripts.insert(0, '. %s' % venv)
             scripts.append("deactivate")
             cmds = ("; ".join(scripts)).rstrip(";") + ";"
             scripts = [cmds]

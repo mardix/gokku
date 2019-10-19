@@ -1082,15 +1082,15 @@ def list_apps():
             running = False
             port = settings.get("PORT", "-")
             domain_name = settings.get('DOMAIN_NAME', '-')
-            ssl = 1 if settings.get("SSL_LETSENCRYPT") is True else 0
+            ssl = "Y" if settings.get("SSL_LETSENCRYPT") is True else "-"
+            
             avg = metrics.get("avg", "-")
             rss = metrics.get("rss", "-")
             vsz = metrics.get("vsz", "-")
             tx = metrics.get("tx", "-")
 
             workers_len = len(workers.keys()) if workers else 0 
-            web_len = "N" 
-            domain_name = ""
+            web_len = "-" 
             if "web" in workers:
                 web_len = "Y"
                 workers_len = workers_len - 1

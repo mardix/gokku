@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.48"
+VERSION = "0.0.49"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -461,7 +461,9 @@ def run_app_scripts(app, script_type):
 
         # activate python
         if runtime == "python":
-            activate_python_venv(app)    
+            virtualenv_path = join(ENV_ROOT, app)
+            activation_script = join(virtualenv_path, 'bin', 'activate_this.py')
+            exec(open(activation_script).read(), dict(__file__=activation_script))   
 
         for cmd in config["scripts"][script_type]:
             call(cmd, cwd=cwd, env=env, shell=True)
@@ -624,10 +626,6 @@ def setup_node_runtime(app, deltas={}):
             call('npm install', cwd=join(APP_ROOT, app), env=env, shell=True)
             unlink(node_path_tmp)
 
-def activate_python_venv(app):
-    virtualenv_path = join(ENV_ROOT, app)
-    activation_script = join(virtualenv_path, 'bin', 'activate_this.py')
-    exec(open(activation_script).read(), dict(__file__=activation_script))
 
 def setup_python_runtime(app, deltas={}):
     """Deploy a Python application"""
@@ -646,7 +644,7 @@ def setup_python_runtime(app, deltas={}):
         call('virtualenv --python=python{version:d} {app:s}'.format(**locals()), cwd=ENV_ROOT, shell=True)
         first_time = True
 
-    activate_python_venv(app)
+    exec(open(activation_script).read(), dict(__file__=activation_script))
 
     if first_time or getmtime(requirements) > getmtime(virtualenv_path):
         echo("......-> Running pip for '{}'".format(app), fg='green')
@@ -1423,7 +1421,7 @@ def cmd_update():
     chmod(GOKKU_SCRIPT, stat(GOKKU_SCRIPT).st_mode | S_IXUSR)
     echo("...update completed!", fg="green")
 
-@cli.command("ssl:download")
+@cli.command("ssl-download")
 @click.argument('app')
 def cmd_ssl_download(app):
     """Downloading SSL CERT & KEY"""

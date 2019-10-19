@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.57"
+VERSION = "0.0.58"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -1106,7 +1106,7 @@ def list_apps():
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_set(app, settings):
-    """Set env config: [<app> [{KEY1}={VAL1}, ...]]"""
+    """Set ENV config: [<app> [{KEY1}={VAL1}, ...]]"""
 
     echo("Update config for %s" % app, fg="green")
     exit_if_not_exists(app)
@@ -1128,7 +1128,7 @@ def cmd_config_set(app, settings):
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_unset(app, settings):
-    """Delete env config: [<app> {KEY}] """
+    """Delete ENV config: [<app> {KEY}] """
 
     echo("Update config for %s" % app, fg="green")
     exit_if_not_exists(app)
@@ -1142,10 +1142,10 @@ def cmd_config_unset(app, settings):
     deploy_app(app)
 
 
-@cli.command("config")
+@cli.command("envs")
 @click.argument('app')
 def cmd_config_live(app):
-    """Show env config: [<app>] """
+    """Show ENV config: [<app>] """
     print_title("Env Config", app=app)
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
@@ -1153,7 +1153,7 @@ def cmd_config_live(app):
 
     if exists(env_file):
         echo("")      
-        echo(open(env_config).read().strip(), fg='white') 
+        echo(open(env_file).read().strip(), fg='white') 
 
 @cli.command("deploy")
 @click.argument('app')

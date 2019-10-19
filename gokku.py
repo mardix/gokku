@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.61"
+VERSION = "0.0.62"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -1070,7 +1070,7 @@ def list_apps():
     """List all apps"""
     print_title("All apps")
     enabled = {a.split("___")[0] for a in listdir(UWSGI_ENABLED) if "___" in a}
-    data = [["App", "Runtime", "Running", "Web", "Port", "SSL", "Workers", "AVG", "RSS", "VSZ", "TX"]]
+    data = [["App Name", "Domain Name", "Runtime", "Running", "Web", "Port", "SSL", "Workers", "AVG", "RSS", "VSZ", "TX"]]
     for app in listdir(APP_ROOT):
         if not app.startswith((".", "_")):
             runtime = get_app_runtime(app)
@@ -1081,6 +1081,7 @@ def list_apps():
             nginx_file = join(NGINX_ROOT, "%s.conf" % app)
             running = False
             port = settings.get("PORT", "-")
+            domain_name = settings.get('DOMAIN_NAME', '-')
             ssl = 1 if settings.get("SSL_LETSENCRYPT") is True else 0
             avg = metrics.get("avg", "-")
             rss = metrics.get("rss", "-")
@@ -1088,18 +1089,19 @@ def list_apps():
             tx = metrics.get("tx", "-")
 
             workers_len = len(workers.keys()) if workers else 0 
-            web_len = 0 
+            web_len = "N" 
+            domain_name = ""
             if "web" in workers:
-                web_len = 1
+                web_len = "Y"
                 workers_len = workers_len - 1
             if runtime == "static":
                 if exists(nginx_file):
                     running = True
             else:
                 running = app in enabled
-            status = 1 if running else "-"
+            status = "Y" if running else "-"
 
-            data.append([app, runtime, status, web_len, port, ssl, workers_len, avg, rss, vsz, tx])
+            data.append([app, domain_name, runtime, status, web_len, port, ssl, workers_len, avg, rss, vsz, tx])
     print_table(data)
 
 @cli.command("set")

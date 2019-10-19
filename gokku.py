@@ -40,7 +40,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.52"
+VERSION = "0.0.53"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -456,7 +456,7 @@ def run_app_scripts(app, script_type):
 
     if "scripts" in config and script_type in config["scripts"]:
         scripts = config["scripts"][script_type]
-        env = get_spawn_env(app)
+        env = get_app_env(app)
         echo("......-> Running scripts: [%s] ..." % script_type, fg="green")
 
         # In python environment, execute everything in the virtualenv
@@ -570,17 +570,13 @@ def get_spawn_env(app):
     settings = join(ENV_ROOT, app, 'SETTINGS')
 
     env = {}
-
     # Load settings
     env.update(get_app_config(app))
-
     # Load environment variables shipped with repo (if any)
     env.update(get_app_env(app))
-
     # Override with custom settings (if any)
     if exists(settings):
         env.update(parse_settings(settings, env))
-
     return env 
 
 def setup_node_runtime(app, deltas={}):

@@ -14,6 +14,7 @@ except AssertionError:
 import sys
 import click
 import json
+import configparser
 from click import secho as echo
 from collections import defaultdict, deque
 from datetime import datetime
@@ -40,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.53"
+VERSION = "0.0.54"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -301,13 +302,6 @@ def get_free_port(address=""):
     return port
 
 
-def write_config(filename, bag, separator='='):
-    """Helper for writing out config files"""
-
-    with open(filename, 'w') as h:
-        for k, v in bag.items():
-            h.write('{k:s}{separator:s}{v}\n'.format(**locals()))
-
 
 def setup_authorized_keys(ssh_fingerprint, script_path, pubkey):
     """Sets up an authorized_keys file to redirect SSH commands"""
@@ -331,20 +325,26 @@ def install_acme_sh():
     call("curl https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh | INSTALLONLINE=1  sh", cwd=GOKKU_ROOT, shell=True)
 
 
-def parse_procfile(filename):
-    """Parses a Procfile and returns the worker types. Only one worker of each type is allowed."""
+def _get_env(app):
+    env_file = join(ENV_ROOT, app, "ENV")
+    if not exists(env_file):
+        with open(env_file, 'w') as f:
+            f.write('')
+    config = configparser.ConfigParser()                                     
+    config.read(env_file)
+    return config
 
-    workers = {}
-    if not exists(filename):
-        return workers
-    with open(filename, 'r') as procfile:
-        for line in procfile:
-            try:
-                kind, command = map(lambda x: x.strip(), line.split(":", 1))
-                workers[kind] = command
-            except:
-                echo("Warning: unrecognized Procfile entry '{}'".format(line), fg='yellow')
-    return workers
+def read_env(app, section):
+    data = json.loads(json.dumps(_get_env(app)._sections.get(section)))
+    return {} if not data else data
+
+def write_env(app, section, data):
+    env_file = join(ENV_ROOT, app, "ENV")
+    env = _get_env()
+    if section not in env:
+        env.add_section(section)
+    [env.set(section, k, str(v)) for k,v in data.items()]
+    env.write(open(env_file, "w"))
 
 
 def expandvars(buffer, env, default=None, skip_escaped=False):
@@ -449,6 +449,19 @@ def get_app_metrics(app):
     return metrics
 
 
+def get_app_runtime(app):
+    app_path = join(APP_ROOT, app)
+    config = get_app_config(app)
+    runtime = config.get("RUNTIME")
+
+    if runtime and runtime.lower() in VALID_RUNTIME:
+        return runtime.lower()
+    if exists(join(app_path, 'requirements.txt')):
+        return "python"
+    elif exists(join(app_path, 'package.json')):
+        return "node"
+    return "static"
+
 def run_app_scripts(app, script_type):
     cwd = join(APP_ROOT, app)
     config = get_config(app)
@@ -468,25 +481,11 @@ def run_app_scripts(app, script_type):
             scripts = [cmds]
   
         for cmd in scripts:
-            print("RUN APP SCRIPT", cmd)
             call(cmd, cwd=cwd, env=env, shell=True)
 
 
-def get_app_runtime(app):
-    app_path = join(APP_ROOT, app)
-    config = get_app_config(app)
-    runtime = config.get("RUNTIME")
 
-    if runtime and runtime.lower() in VALID_RUNTIME:
-        return runtime.lower()
-    if exists(join(app_path, 'requirements.txt')):
-        return "python"
-    elif exists(join(app_path, 'package.json')):
-        return "node"
-    return "static"
-
-
-def do_deploy(app, deltas={}, newrev=None, release=False):
+def deploy_app(app, deltas={}, newrev=None, release=False):
     """Deploy an app by resetting the work directory"""
 
     app_path = join(APP_ROOT, app)
@@ -576,7 +575,7 @@ def get_spawn_env(app):
     env.update(get_app_env(app))
     # Override with custom settings (if any)
     if exists(settings):
-        env.update(parse_settings(settings, env))
+        env.update(read_env(app, 'SETTINGS'))
     return env 
 
 def setup_node_runtime(app, deltas={}):
@@ -660,14 +659,10 @@ def spawn_app(app, deltas={}):
     app_path = join(APP_ROOT, app)
     runtime = get_app_runtime(app)
     workers = get_app_workers(app)
-
     ordinals = defaultdict(lambda: 1)
     worker_count = {k: 1 for k in workers.keys()}
-
     virtualenv_path = join(ENV_ROOT, app)
-    live = join(ENV_ROOT, app, 'ENV')
-    scaling = join(ENV_ROOT, app, 'SCALING')
-    settings = join(ENV_ROOT, app, 'SETTINGS')
+    scaling = read_env(app, 'SCALING')
 
     # Bootstrap environment
     env = {
@@ -839,8 +834,8 @@ def spawn_app(app, deltas={}):
                 unlink(nginx_conf)
 
     # Configured worker count
-    if exists(scaling):
-        worker_count.update({k: int(v) for k, v in parse_procfile(scaling).items() if k in workers})
+    if scaling:
+        worker_count.update({k: int(v) for k, v in scaling.items() if k in workers})
 
     to_create = {}
     to_destroy = {}
@@ -858,8 +853,9 @@ def spawn_app(app, deltas={}):
             del env[k]
 
     # Save current settings
-    write_config(live, env)
-    write_config(scaling, worker_count, ':')
+    write_env(app, 'SETTINGS', env)
+    write_env(app, 'SCALING', worker_count)
+
 
     # auto restart
     if env.get("AUTO_RESTART", False) is True:
@@ -1082,7 +1078,7 @@ def list_apps():
             runtime = get_app_runtime(app)
             workers = get_app_workers(app)
             metrics = get_app_metrics(app)
-            settings = parse_settings(join(ENV_ROOT, app, 'ENV'))
+            settings = read_env(app, 'SETTINGS')
 
             nginx_file = join(NGINX_ROOT, "%s.conf" % app)
             running = False
@@ -1117,8 +1113,7 @@ def cmd_config_set(app, settings):
     echo("Update config for %s" % app, fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    config_file = join(ENV_ROOT, app, 'SETTINGS')
-    env = parse_settings(config_file)
+    env = read_env(app, 'CUSTOM')
     for s in settings:
         try:
             k, v = map(lambda x: x.strip(), s.split("=", 1))
@@ -1127,8 +1122,8 @@ def cmd_config_set(app, settings):
         except:
             echo("Error: malformed setting '{}'".format(s), fg='red')
             return
-    write_config(config_file, env)
-    do_deploy(app)
+    write_env(app, 'CUSTOM', env)
+    deploy_app(app)
 
 
 @cli.command("del")
@@ -1140,14 +1135,13 @@ def cmd_config_unset(app, settings):
     echo("Update config for %s" % app, fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    config_file = join(ENV_ROOT, app, 'SETTINGS')
-    env = parse_settings(config_file)
+    env = read_env(app, 'CUSTOM')
     for s in settings:
         if s in env:
             del env[s]
             echo("......-> unset {} for '{}'".format(s, app), fg='white')
-    write_config(config_file, env)
-    do_deploy(app)
+    write_env(app, 'CUSTOM', env)
+    deploy_app(app)
 
 
 @cli.command("config")
@@ -1157,21 +1151,11 @@ def cmd_config_live(app):
     print_title("Env Config", app=app)
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    live_config = join(ENV_ROOT, app, 'ENV')
-    settings_file = join(ENV_ROOT, app, 'SETTINGS')
-    
-    if exists(live_config):
-        echo("")
-        echo("---------- Live Config ----------")        
-        echo(open(live_config).read().strip(), fg='white') 
-    else:
-        echo("Warning: app '{}' not deployed, no config found.".format(app), fg='yellow')
+    env_file = join(ENV_ROOT, app, 'ENV')
 
-    if exists(settings_file):
-        echo("")
-        echo("")
-        echo("---------- Custom Config ----------")
-        echo(open(settings_file).read().strip(), fg='white')
+    if exists(env_file):
+        echo("")      
+        echo(open(live_config).read().strip(), fg='white') 
 
 @cli.command("deploy")
 @click.argument('app')
@@ -1180,7 +1164,7 @@ def cmd_deploy(app):
     echo("Deploy app", fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    do_deploy(app)
+    deploy_app(app)
 
 
 @cli.command("destroy")
@@ -1251,13 +1235,11 @@ def cmd_ps(app):
     print_title("Process", app=app)
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    config_file = join(ENV_ROOT, app, 'SCALING')
-
-    if exists(config_file):
-        with open(config_file) as f:
-            data = [[l.split(":")[0], l.split(":")[1]] for l in f.read().strip().split("\n")]
-            data.insert(0, ["Process", "Size"])
-            print_table(data)    
+    env = read_env(app, 'SCALING')
+    if env:
+        data = [[k, v] for k, v in env.items()]
+        data.insert(0, ["Process", "Size"])
+        print_table(data)    
     else:
         echo("Error: no workers found for app '%s'." % app, fg='red')
 
@@ -1270,8 +1252,8 @@ def cmd_ps_scale(app, settings):
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    config_file = join(ENV_ROOT, app, 'SCALING')
-    worker_count = {k: int(v) for k, v in parse_procfile(config_file).items()}
+    env = read_env(app, 'SCALING')
+    worker_count = {k: int(v) for k, v in env.items()}
     deltas = {}
     for s in settings:
         try:
@@ -1287,7 +1269,7 @@ def cmd_ps_scale(app, settings):
         except:
             echo("Error: malformed setting '{}'".format(s), fg='red')
             return
-    do_deploy(app, deltas)
+    deploy_app(app, deltas)
 
 
 @cli.command("reload")
@@ -1459,7 +1441,7 @@ def cmd_git_hook(app):
             makedirs(app_path)
             call('git clone --quiet {} {}'.format(repo_path, app), cwd=APP_ROOT, shell=True)
 
-        do_deploy(app, newrev=newrev, release=True)
+        deploy_app(app, newrev=newrev, release=True)
 
 
 def cmd_git_receive_pack(app):

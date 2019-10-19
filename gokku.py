@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.47"
+VERSION = "0.0.48"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -453,11 +453,16 @@ def get_app_metrics(app):
 def run_app_scripts(app, script_type):
     cwd = join(APP_ROOT, app)
     config = get_config(app)
+    runtime = get_app_runtime(app)
 
     if "scripts" in config and script_type in config["scripts"]:
         env = get_spawn_env(app)
-        echo("......-> Running scripts: %s ..." % script_type, fg="green")
-        
+        echo("......-> Running scripts: [%s] ..." % script_type, fg="green")
+
+        # activate python
+        if runtime == "python":
+            activate_python_venv(app)    
+
         for cmd in config["scripts"][script_type]:
             call(cmd, cwd=cwd, env=env, shell=True)
 
@@ -619,6 +624,10 @@ def setup_node_runtime(app, deltas={}):
             call('npm install', cwd=join(APP_ROOT, app), env=env, shell=True)
             unlink(node_path_tmp)
 
+def activate_python_venv(app):
+    virtualenv_path = join(ENV_ROOT, app)
+    activation_script = join(virtualenv_path, 'bin', 'activate_this.py')
+    exec(open(activation_script).read(), dict(__file__=activation_script))
 
 def setup_python_runtime(app, deltas={}):
     """Deploy a Python application"""
@@ -637,7 +646,7 @@ def setup_python_runtime(app, deltas={}):
         call('virtualenv --python=python{version:d} {app:s}'.format(**locals()), cwd=ENV_ROOT, shell=True)
         first_time = True
 
-    exec(open(activation_script).read(), dict(__file__=activation_script))
+    activate_python_venv(app)
 
     if first_time or getmtime(requirements) > getmtime(virtualenv_path):
         echo("......-> Running pip for '{}'".format(app), fg='green')
@@ -1102,7 +1111,7 @@ def list_apps():
             data.append([app, runtime, status, web_len, port, ssl, workers_len, avg, rss, vsz, tx])
     print_table(data)
 
-@cli.command("config:set")
+@cli.command("set")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_set(app, settings):
@@ -1125,7 +1134,7 @@ def cmd_config_set(app, settings):
     do_deploy(app)
 
 
-@cli.command("config:del")
+@cli.command("del")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_config_unset(app, settings):
@@ -1167,7 +1176,7 @@ def cmd_config_live(app):
         echo("---------- Custom Config ----------")
         echo(open(settings_file).read().strip(), fg='white')
 
-@cli.command("app:deploy")
+@cli.command("deploy")
 @click.argument('app')
 def cmd_deploy(app):
     """Deploy app: [<app>]"""
@@ -1177,7 +1186,7 @@ def cmd_deploy(app):
     do_deploy(app)
 
 
-@cli.command("app:destroy")
+@cli.command("destroy")
 @click.argument('app')
 def cmd_destroy(app):
     """Delete app: [<app>]"""
@@ -1222,7 +1231,7 @@ def cmd_destroy(app):
         unlink(acme_link)
 
 
-@cli.command("app:log")
+@cli.command("log")
 @click.argument('app')
 def cmd_logs(app):
     """Read tail logs [<app>]"""
@@ -1256,7 +1265,7 @@ def cmd_ps(app):
         echo("Error: no workers found for app '%s'." % app, fg='red')
 
 
-@cli.command("ps:set")
+@cli.command("scale")
 @click.argument('app')
 @click.argument('settings', nargs=-1)
 def cmd_ps_scale(app, settings):
@@ -1284,7 +1293,7 @@ def cmd_ps_scale(app, settings):
     do_deploy(app, deltas)
 
 
-@cli.command("app:reload")
+@cli.command("reload")
 @click.argument('app')
 def cmd_reload(app):
     """Reload app: [<app>]"""
@@ -1309,7 +1318,7 @@ def cmd_reload_all():
             echo("...-> reloading '{}'...".format(app), fg='yellow')
             spawn_app(app)
 
-@cli.command("app:stop")
+@cli.command("stop")
 @click.argument('app')
 def cmd_stop(app):
     """Stop app: [<app>]"""

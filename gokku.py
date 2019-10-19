@@ -468,6 +468,7 @@ def run_app_scripts(app, script_type):
             scripts = [cmds]
   
         for cmd in scripts:
+            print("RUN APP SCRIPT", cmd)
             call(cmd, cwd=cwd, env=env, shell=True)
 
 

@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.55"
+VERSION = "0.0.56"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -330,7 +330,8 @@ def _get_env(app):
     if not exists(env_file):
         with open(env_file, 'w') as f:
             f.write('')
-    config = configparser.ConfigParser()                                     
+    config = configparser.ConfigParser() 
+    config.optionxform = str              
     config.read(env_file)
     return config
 
@@ -343,7 +344,7 @@ def write_env(app, section, data):
     env = _get_env(app)
     if section not in env:
         env.add_section(section)
-    [env.set(section, k, str(v)) for k,v in data.items()]
+    [env.set(section, k.upper(), str(v)) for k,v in data.items()]
     env.write(open(env_file, "w"))
 
 

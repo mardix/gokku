@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.59"
+VERSION = "0.0.60"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -393,7 +393,7 @@ def get_config(app):
 
 def get_app_workers(app):
     """ Returns the applications to run """
-    return get_config(app)["run"]
+    return {k.lower(): v  for k,v in get_config(app).get('run', {}).items()}
 
 
 def get_app_config(app):
@@ -833,7 +833,7 @@ def spawn_app(app, deltas={}):
 
     # Configured worker count
     if scaling:
-        worker_count.update({k: int(v) for k, v in scaling.items() if k in workers})
+        worker_count.update({k.lower(): int(v) for k, v in scaling.items() if k.lower() in workers})
 
     to_create = {}
     to_destroy = {}
@@ -1481,7 +1481,7 @@ def main():
     # Internal GIT command
     if _argvs and len(_argvs) >= 2 and _argvs[1] in ["init", "git-hook", "git-upload-pack", "git-receive-pack"]:
         cmd = sys.argv[1]
-        
+
         if cmd == "init":
             cmd_init()
         elif len(_argvs) >= 3:

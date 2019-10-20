@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.64"
+VERSION = "0.0.65"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -54,13 +54,15 @@ ENV_ROOT = abspath(join(DOT_ROOT, "envs"))
 GIT_ROOT = abspath(join(DOT_ROOT, "repos"))
 LOG_ROOT = abspath(join(DOT_ROOT, "logs"))
 NGINX_ROOT = abspath(join(DOT_ROOT, "nginx"))
+METRICS_ROOT = abspath(join(DOT_ROOT, "metrics"))
+SETTINGS_ROOT = abspath(join(DOT_ROOT, "settings"))
 UWSGI_AVAILABLE = abspath(join(DOT_ROOT, "uwsgi-available"))
 UWSGI_ENABLED = abspath(join(DOT_ROOT, "uwsgi-enabled"))
 UWSGI_ROOT = abspath(join(DOT_ROOT, "uwsgi"))
-UWSGI_LOG_MAXSIZE = '1048576'
+
 ACME_ROOT = environ.get('ACME_ROOT', join(environ['HOME'], '.acme.sh'))
 ACME_WWW = abspath(join(DOT_ROOT, "acme"))
-METRICS_ROOT = abspath(join(DOT_ROOT, "metrics"))
+UWSGI_LOG_MAXSIZE = '1048576'
 
 if 'sbin' not in environ['PATH']:
     environ['PATH'] = "/usr/local/sbin:/usr/sbin:/sbin:" + environ['PATH']
@@ -326,7 +328,7 @@ def install_acme_sh():
 
 
 def _get_env(app):
-    env_file = join(ENV_ROOT, app, "ENV")
+    env_file = join(SETTINGS_ROOT, app, "ENV")
     if not exists(env_file):
         with open(env_file, 'w') as f:
             f.write('')
@@ -335,12 +337,12 @@ def _get_env(app):
     config.read(env_file)
     return config
 
-def read_env(app, section):
+def read_settings(app, section):
     data = json.loads(json.dumps(_get_env(app)._sections.get(section)))
     return {} if not data else data
 
-def write_env(app, section, data):
-    env_file = join(ENV_ROOT, app, "ENV")
+def write_settings(app, section, data):
+    env_file = join(SETTINGS_ROOT, app, "ENV")
     env = _get_env(app)
     if section not in env:
         env.add_section(section)
@@ -488,8 +490,9 @@ def deploy_app(app, deltas={}, newrev=None, release=False):
     app_path = join(APP_ROOT, app)
     env_path = join(ENV_ROOT, app)   
     log_path = join(LOG_ROOT, app)
+    conf_path = join(SETTINGS_ROOT, app)
     # list of paths that must exist
-    ensure_paths = [env_path, log_path]
+    ensure_paths = [env_path, log_path, conf_path]
     
     env = {
         'GIT_WORK_DIR': app_path
@@ -569,7 +572,7 @@ def get_spawn_env(app):
     # Load environment variables shipped with repo (if any)
     env.update(get_app_env(app))
     # Override with custom settings (if any)
-    env.update(read_env(app, 'CUSTOM'))
+    env.update(read_settings(app, 'CUSTOM'))
     return env 
 
 def setup_node_runtime(app, deltas={}):
@@ -656,7 +659,7 @@ def spawn_app(app, deltas={}):
     ordinals = defaultdict(lambda: 1)
     worker_count = {k: 1 for k in workers.keys()}
     virtualenv_path = join(ENV_ROOT, app)
-    scaling = read_env(app, 'SCALING')
+    scaling = read_settings(app, 'SCALING')
 
     # Bootstrap environment
     env = {
@@ -847,9 +850,8 @@ def spawn_app(app, deltas={}):
             del env[k]
 
     # Save current settings
-    write_env(app, 'ENV', env)
-    write_env(app, 'SCALING', worker_count)
-
+    write_settings(app, 'ENV', env)
+    write_settings(app, 'SCALING', worker_count)
 
     # auto restart
     if env.get("AUTO_RESTART", False) is True:
@@ -1042,7 +1044,7 @@ def multi_tail(app, filenames, catch_up=20):
                     filenames.remove(f)
 
 def delete_app_metrics(app):
-    metrics_dir = join(ENV_ROOT, app, 'metrics')
+    metrics_dir = join(METRICS_ROOT, app)
     if exists(metrics_dir):
         rmtree(metrics_dir)
     if not exists(metrics_dir):
@@ -1071,7 +1073,7 @@ def list_apps():
             runtime = get_app_runtime(app)
             workers = get_app_workers(app)
             metrics = get_app_metrics(app)
-            settings = read_env(app, 'ENV')
+            settings = read_settings(app, 'ENV')
 
             nginx_file = join(NGINX_ROOT, "%s.conf" % app)
             running = False
@@ -1108,7 +1110,7 @@ def cmd_config_set(app, settings):
     echo("Update config for %s" % app, fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    env = read_env(app, 'CUSTOM')
+    env = read_settings(app, 'CUSTOM')
     for s in settings:
         try:
             k, v = map(lambda x: x.strip(), s.split("=", 1))
@@ -1117,7 +1119,7 @@ def cmd_config_set(app, settings):
         except:
             echo("Error: malformed setting '{}'".format(s), fg='red')
             return
-    write_env(app, 'CUSTOM', env)
+    write_settings(app, 'CUSTOM', env)
     deploy_app(app)
 
 
@@ -1130,12 +1132,12 @@ def cmd_config_unset(app, settings):
     echo("Update config for %s" % app, fg="green")
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    env = read_env(app, 'CUSTOM')
+    env = read_settings(app, 'CUSTOM')
     for s in settings:
         if s in env:
             del env[s]
             echo("......-> unset {} for '{}'".format(s, app), fg='white')
-    write_env(app, 'CUSTOM', env)
+    write_settings(app, 'CUSTOM', env)
     deploy_app(app)
 
 
@@ -1146,7 +1148,7 @@ def cmd_config_live(app):
     print_title("Env Config", app=app)
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    env_file = join(ENV_ROOT, app, 'ENV')
+    env_file = join(SETTINGS_ROOT, app, 'ENV')
 
     if exists(env_file):
         echo("")      
@@ -1180,7 +1182,8 @@ def cmd_destroy(app):
     # on destroy
     run_app_scripts(app, "destroy")
 
-    for p in [join(x, app) for x in [APP_ROOT, GIT_ROOT, ENV_ROOT, LOG_ROOT, METRICS_ROOT]]:
+    for p in [join(x, app) for x in [APP_ROOT, GIT_ROOT, ENV_ROOT, SETTINGS_ROOT, 
+                                        LOG_ROOT, METRICS_ROOT]]:
         if exists(p):
             echo("Removing folder '{}'".format(p), fg='yellow')
             rmtree(p)
@@ -1230,7 +1233,7 @@ def cmd_ps(app):
     print_title("Process", app=app)
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    env = read_env(app, 'SCALING')
+    env = read_settings(app, 'SCALING')
     if env:
         data = [[k, v] for k, v in env.items()]
         data.insert(0, ["Process", "Size"])
@@ -1247,7 +1250,7 @@ def cmd_ps_scale(app, settings):
 
     exit_if_not_exists(app)
     app = sanitize_app_name(app)
-    env = read_env(app, 'SCALING')
+    env = read_settings(app, 'SCALING')
     worker_count = {k.lower(): int(v) for k, v in env.items()}
     deltas = {}
     for s in settings:
@@ -1391,7 +1394,9 @@ def cmd_init():
     echo("......-> running in Python {}".format(".".join(map(str, version_info))))
 
     # Create required paths
-    for p in [APP_ROOT, GIT_ROOT, ACME_WWW, ENV_ROOT, UWSGI_ROOT, UWSGI_AVAILABLE, UWSGI_ENABLED, LOG_ROOT, NGINX_ROOT, METRICS_ROOT]:
+    for p in [APP_ROOT, GIT_ROOT, ACME_WWW, ENV_ROOT, UWSGI_ROOT, 
+                UWSGI_AVAILABLE, UWSGI_ENABLED, LOG_ROOT, 
+                SETTINGS_ROOT, NGINX_ROOT, METRICS_ROOT]:
         if not exists(p):
             echo("Creating '{}'.".format(p), fg='green')
             makedirs(p)
@@ -1431,13 +1436,8 @@ def cmd_git_hook(app):
     repo_path = join(GIT_ROOT, app)
     app_path = join(APP_ROOT, app)
 
-    print("GIT HOOK STDIN", stdin)
     for line in stdin:
         oldrev, newrev, refname = line.strip().split(" ")
-        print("GIT HOOK STDIN O-", oldrev)
-        print("GIT HOOK STDIN N-", newrev)
-        print("GIT HOOK STDIN R-", refname)
-        print("---")
         if not exists(app_path):
             echo("......-> Creating app '{}'".format(app), fg='green')
             makedirs(app_path)

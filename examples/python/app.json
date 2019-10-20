@@ -1,0 +1,11 @@
+{
+  "name": "yourdomain.com",
+  "gokku": {
+    "domain_name": "yourdomain.com",
+    "env": {},
+    "run": {
+      "web": "app:app"
+    }
+  }
+}
+

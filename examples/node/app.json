@@ -1,0 +1,11 @@
+{
+  "gokku": {
+    "domain_name": "yourdomain.com",
+    "runtime": "node",
+    "auto_restart": true,
+    "run": {
+      "web": "node app.js 2>&1 | cat"
+    }
+  }
+}
+

@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.62"
+VERSION = "0.0.64"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -281,7 +281,7 @@ def human_size(n):
 
 def sanitize_app_name(app):
     """Sanitize the app name and build matching path"""
-    return "".join(c for c in app if c.isalnum() or c in ('.', '_')).rstrip().lstrip('/')
+    return "".join(c for c in app if c.isalnum() or c in ('.', '_', '-')).rstrip().lstrip('/')
 
 
 def exit_if_not_exists(app):
@@ -390,7 +390,6 @@ def get_config(app):
         return json.load(f)["gokku"]
     return None
 
-
 def get_app_workers(app):
     """ Returns the applications to run """
     return {k.lower(): v  for k,v in get_config(app).get('run', {}).items()}
@@ -449,7 +448,6 @@ def get_app_metrics(app):
             metrics[fk] = "-"
     return metrics
 
-
 def get_app_runtime(app):
     app_path = join(APP_ROOT, app)
     config = get_app_config(app)
@@ -483,8 +481,6 @@ def run_app_scripts(app, script_type):
   
         for cmd in scripts:
             call(cmd, cwd=cwd, env=env, shell=True)
-
-
 
 def deploy_app(app, deltas={}, newrev=None, release=False):
     """Deploy an app by resetting the work directory"""
@@ -966,8 +962,7 @@ def spawn_worker(app, kind, command, env, ordinal=1):
             del env[k]
 
     # insert user defined uwsgi settings if set
-    settings += parse_settings(join(APP_ROOT, app, env.get("UWSGI_INCLUDE_FILE"))
-                               ).items() if env.get("UWSGI_INCLUDE_FILE") else []
+    settings += parse_settings(join(APP_ROOT, app, env.get("UWSGI_INCLUDE_FILE"))).items() if env.get("UWSGI_INCLUDE_FILE") else []
 
     for k, v in env.items():
         settings.append(('env', '{k:s}={v}'.format(**locals())))
@@ -1436,8 +1431,13 @@ def cmd_git_hook(app):
     repo_path = join(GIT_ROOT, app)
     app_path = join(APP_ROOT, app)
 
+    print("GIT HOOK STDIN", stdin)
     for line in stdin:
         oldrev, newrev, refname = line.strip().split(" ")
+        print("GIT HOOK STDIN O-", oldrev)
+        print("GIT HOOK STDIN N-", newrev)
+        print("GIT HOOK STDIN R-", refname)
+        print("---")
         if not exists(app_path):
             echo("......-> Creating app '{}'".format(app), fg='green')
             makedirs(app_path)
@@ -1450,12 +1450,13 @@ def cmd_git_receive_pack(app):
     """INTERNAL: Handle git pushes for an app"""
 
     app = sanitize_app_name(app)
-    hook_path = join(GIT_ROOT, app, 'hooks', 'post-receive')
+    app_dir = join(GIT_ROOT, app)
+    hook_path = join(app_dir, 'hooks', 'post-receive')
     env = globals()
     env.update(locals())
 
     if not exists(hook_path):
-        makedirs(dirname(hook_path))
+        makedirs(app_dir)
         # Initialize the repository with a hook to this script
         call("git init --quiet --bare " + app, cwd=GIT_ROOT, shell=True)
         with open(hook_path, 'w') as h:
@@ -1464,6 +1465,7 @@ set -e; set -o pipefail;
 cat | GOKKU_ROOT="{GOKKU_ROOT:s}" {GOKKU_SCRIPT:s} git-hook {app:s}""".format(**env))
         # Make the hook executable by our user
         chmod(hook_path, stat(hook_path).st_mode | S_IXUSR)
+
     call('git-shell -c "{}" '.format(argv[1] + " '{}'".format(app)), cwd=GIT_ROOT, shell=True)
 
 

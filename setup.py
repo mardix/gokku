@@ -14,7 +14,7 @@ __summary__ = "A very small PaaS to do git push app deployments to your own serv
 __uri__ = "https://github.com/mardix/gokku/"
 setup(
     name="gokku",
-    version="0.1.0",
+    version="0.2.0",
     license="MIT",
     author="Mardix",
     author_email="mcx2082@gmail.com",

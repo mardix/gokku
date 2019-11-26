@@ -41,7 +41,7 @@ from grp import getgrgid
 # -----------------------------------------------------------------------------
 
 NAME = "Gokku"
-VERSION = "0.0.66"
+VERSION = "0.2.0"
 VALID_RUNTIME = ["python", "node", "static", "shell"]
 
 
@@ -389,7 +389,21 @@ def get_config(app):
     """ Return the info from app.json """
     config_file = join(APP_ROOT, app, "app.json")
     with open(config_file) as f:
-        return json.load(f)["gokku"]
+        config = json.load(f)["gokku"]
+
+        # multiple site can be deployed by having app.json:gokku as array
+        # with each item containing a domain_name to match the app name 
+        if isinstance(config, list):
+            for c in config:
+              if app == c["domain_name"]:
+                  return c
+
+            echo("ERROR: '%s' not found in app.json. 'app.json:gokku' is an array but app name didn't match domain_name" % app, fg="red")
+            exit(1)
+
+        # single site
+        else:
+            return config
     return None
 
 def get_app_workers(app):

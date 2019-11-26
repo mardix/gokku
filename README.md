@@ -13,7 +13,7 @@ It supports Python (Flask/Django), Nodejs, PHP and Static HTML.
 
 - Easy command line setup
 - Instant deploy with Git
-- Multi applications
+- Multi applications deployment
 - App management: deploy, stop, delete, scale, logs apps
 - Simple and straight forward
 - SSL/HTTPS with LetsEncrypt
@@ -41,11 +41,6 @@ It supports Python (Flask/Django), Nodejs, PHP and Static HTML.
 - [x] Any shell script
 
 
-### Commands
-
-```
-
-```
 ---
 
 ## Setup
@@ -114,6 +109,153 @@ Once you are ready to deploy, push your code to master
 
 `git push gokku master`
 
+---
+
+## Commands
+
+Gokku communicates with your server via SSH, with the user name: `gokku`  
+
+ie: `ssh gokku@host.com`
+
+### General
+
+#### List all commands
+
+List all commands
+
+```
+ssh gokku@host.com
+```
+
+#### apps
+
+List  all apps
+
+```
+ssh gokku@host.com apps
+```
+
+#### deploy
+
+Deploy app. `$app_name` is the app name
+
+```
+ssh gokku@host.com deploy $app_name
+```
+
+#### reload
+
+Reload an app
+
+```
+ssh gokku@host.com reload $app_name
+```
+
+#### stop
+
+Stop an app
+
+```
+ssh gokku@host.com stop $app_name
+```
+
+#### destroy
+
+Delete an app
+
+```
+ssh gokku@host.com destroy $app_name
+```
+
+#### reload-all
+
+Reload all apps on the server
+
+```
+ssh gokku@host.com reload-all
+```
+
+#### stop-all
+
+Stop all apps on the server
+
+```
+ssh gokku@host.com stop-all
+```
+
+### Scaling
+
+To scale the application
+
+### ps
+
+Show the process count
+
+```
+ssh gokku@host.com ps $app_name
+```
+
+### scale
+
+Scale processes
+
+```
+ssh gokku@host.com scale $app_name $proc=$count $proc2=$count2
+```
+
+ie: `ssh gokku@host.com scale site.com web=4`
+
+### Environment
+
+To edit application's environment variables 
+
+#### env
+
+Show ENV configuration for app
+
+```
+ssh gokku@host.com env $app_name
+```
+
+#### set
+
+Set ENV config
+
+```
+ssh gokku@host.com del $app_name $KEY=$VAL $KEY2=$VAL2
+```
+
+#### del
+
+Delete a key from the environment var
+
+```
+ssh gokku@host.com del $app_name $KEY
+```
+
+### Log
+
+To view application's log
+
+```
+ssh gokku@host.com log $app_name
+```
+
+### Update
+
+To update Gokku to the latest from Github
+
+```
+ssh gokku@host.com update
+```
+
+### Version
+
+To get Gokku's version
+
+```
+ssh gokku@host.com version
+```
 
 ---
 
@@ -253,6 +395,61 @@ Copy and edit the config below in your `app.json` file.
 ```
 ---
 
+## Multiple Apps Deployment 
+
+**Gokku** allows multiple sites deployment on a single repo.
+
+If you have a mono repo and want to deploy multiple applications based on the domain name, you can do so by having *app.json:gokku* as an array instead of an object. The `app_name` must match the `domain_name` from the *app.json:gokku array*
+
+### Examples
+
+#### Config
+
+Add multiple domains
+
+```json
+{
+  "gokku": [{
+    "domain_name": "mysite.com",
+      ...
+    },
+    {
+      "domain_name": "myothersite.com",
+      ...
+    },
+    ...
+  ]
+}
+
+```
+#### Setup GIT
+
+```
+git remote add gokku-mysite gokku@example.com:mysite.com
+```
+
+```
+git remote add gokku-myothersite gokku@other-example.com:myothersite.com
+```
+
+#### Deploy app
+
+`git push gokku-mysite master` will deploy *mysite.com*
+
+`git push gokku-myothersite master` will deploy *myothersite.com*
+
+---
+
+## Upgrade Gokku
+
+If you're already using Gokku, you can upgrade Gokku with: 
+
+```
+ssh gokku@host.com update
+```
+
+---
+
 ## Credit 
 
 Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank you 
@@ -269,6 +466,16 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
 
 ## CHANGELOG
 
+- 0.2.0
+  - Multiple domain name deployment.
+    Sites in Mono repo can now rely on different config based on the app name
+    by having app.gooku as a list of dict, it will test for 'domain_name' to match the app_name
+    ``` 
+    gooku : [
+      {"domain_name": "abc.com", ...},
+      {"domain_name": "xyz.com", ...},
+    ]
+    ```
 - 0.1.0
   - Initial
   - app.json contains the application configuration
@@ -290,8 +497,14 @@ Gokku is a fork of **Piku** https://github.com/piku/piku. Great work and Thank y
   - ssl default
   - https default
 
+---
+
+## TODO
+
+- [x] (0.2.0) Allow multiple site deployment. For multi sites, instead of app.gokku being an object, gooku will be an array with all the site. 'domain_name' should match the app in git. 
+ie: gokku@example.com:api.com, gokku@example.com:dev.api.com; with api.com and dev.api.com being two domain_name in the config
 
 ---
 
-License: MIT - Copyright 2019-Forever Mardix
+License: MIT - Copyright 2020-Forever Mardix
 
